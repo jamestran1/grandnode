@@ -413,7 +413,9 @@ ul.ui-autocomplete li img {
 	display: none;
 }
 /*external modal*/
-
+.external-authentication {
+	display: flex;
+}
 #action_modal_banner {
 	position: relative;
 	background: #FFF;
@@ -2988,6 +2990,9 @@ span.product-quantity {
 .attributes ul {
 	margin-bottom: 0;
 	padding-left: 0;
+}
+.product-details-page .attributes .selected-value label {
+    border: 2px solid #17a2b8;
 }
 /*datapicker*/
 
