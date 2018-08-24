@@ -50,7 +50,7 @@
                 </div>
             </div>
             <div class="card-body row flex-row mb-3">
-                    <div class="col-lg-3 col-md-4 col-12 text-center text-md-left">
+                    <div class="col-lg-2 col-md-3 col-12 text-center text-md-left forum-post">
                         @if (!String.IsNullOrEmpty(Model.CustomerAvatarUrl))
                         {
                             <div class="avatar mb-1">
@@ -107,7 +107,7 @@
                             </div>
                         }
                     </div>
-                    <div class="col-lg-8 col-md-6 col-9">
+                    <div class="col-lg-9 col-md-7 col-9">
                         <div class="post-text pt-2">
                             @Html.Raw(Model.FormattedText)
                             @Html.Hidden("Id", Model.Id)
@@ -139,41 +139,41 @@
 
 @if (Model.AllowPostVoting)
 {
-    <script type="text/javascript">
-                            $(document).ready(function () {
-                                var post = '#post-vote-' + '@Model.Id';
-                                $(post + ' span.vote').click(function () {
-                                    var postData = {
-                                        postId: '@Model.Id',
-                                        IsUp: $(this).hasClass('up')
-                                    };
-                                    addAntiForgeryToken(postData);
-                                    $.ajax({
-                                        cache: false,
-                                        type: "POST",
-                                        url: '@Url.Action("PostVote", "Boards")',
-                                        data: postData,
-                                        success: function (data) {
-                                            if (data.Error) {
-                                                alert(data.Error);
-                                            }
-                                            else {
-                                                $(post + ' div.vote-count-post').html(data.VoteCount);
-                                                $(post + ' span.up').removeClass('selected');
-                                                $(post + ' span.down').removeClass('selected');
-                                                if (data.IsUp) {
-                                                    $(post + ' span.up').addClass('selected');
-                                                }
-                                                if (data.IsUp == false) {
-                                                    $(post + ' span.down').addClass('selected');
-                                                }
-                                            }
-                                        },
-                                        error: function (xhr, ajaxOptions, thrownError) {
-                                            alert('Failed to vote');
-                                        }
-                                    });
-                                });
-                            });
+    <script>
+            $(document).ready(function () {
+                var post = '#post-vote-' + '@Model.Id';
+                $(post + ' span.vote').click(function () {
+                    var postData = {
+                        postId: '@Model.Id',
+                        IsUp: $(this).hasClass('up')
+                    };
+                    addAntiForgeryToken(postData);
+                    $.ajax({
+                        cache: false,
+                        type: "POST",
+                        url: '@Url.Action("PostVote", "Boards")',
+                        data: postData,
+                        success: function (data) {
+                            if (data.Error) {
+                                alert(data.Error);
+                            }
+                            else {
+                                $(post + ' div.vote-count-post').html(data.VoteCount);
+                                $(post + ' span.up').removeClass('selected');
+                                $(post + ' span.down').removeClass('selected');
+                                if (data.IsUp) {
+                                    $(post + ' span.up').addClass('selected');
+                                }
+                                if (data.IsUp == false) {
+                                    $(post + ' span.down').addClass('selected');
+                                }
+                            }
+                        },
+                        error: function (xhr, ajaxOptions, thrownError) {
+                            alert('Failed to vote');
+                        }
+                    });
+                });
+            });
     </script>
 }

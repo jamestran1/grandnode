@@ -10,7 +10,7 @@ namespace Grand.Core.Domain.Catalog
     /// <summary>
     /// Represents a category
     /// </summary>
-    public partial class Category : BaseEntity, ISlugSupported, IAclSupported, ILocalizedEntity, IStoreMappingSupported
+    public partial class Category : BaseEntity, ISlugSupported, IAclSupported, ILocalizedEntity, IStoreMappingSupported, ITreeNode
     {
         private ICollection<string> _appliedDiscounts;
 
@@ -126,6 +126,21 @@ namespace Grand.Core.Domain.Catalog
         /// Gets or sets the display order
         /// </summary>
         public int DisplayOrder { get; set; }
+
+        /// <summary>
+        /// Gets or sets the flag
+        /// </summary>
+        public string Flag { get; set; }
+
+        /// <summary>
+        /// Gets or sets the flag style
+        /// </summary>
+        public string FlagStyle { get; set; }
+
+        /// <summary>
+        /// Gets or sets the hide on catalog page (subcategories)
+        /// </summary>
+        public bool HideOnCatalog { get; set; }
 
         /// <summary>
         /// Gets or sets the date and time of instance creation

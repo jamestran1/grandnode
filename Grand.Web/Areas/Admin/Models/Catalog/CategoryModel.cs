@@ -88,7 +88,16 @@ namespace Grand.Web.Areas.Admin.Models.Catalog
 
         [GrandResourceDisplayName("Admin.Catalog.Categories.Fields.DisplayOrder")]
         public int DisplayOrder { get; set; }
-        
+
+        [GrandResourceDisplayName("Admin.Catalog.Categories.Fields.Flag")]
+        public string Flag { get; set; }
+
+        [GrandResourceDisplayName("Admin.Catalog.Categories.Fields.FlagStyle")]
+        public string FlagStyle { get; set; }
+
+        [GrandResourceDisplayName("Admin.Catalog.Categories.Fields.HideOnCatalog")]
+        public bool HideOnCatalog { get; set; }
+
         public IList<CategoryLocalizedModel> Locales { get; set; }
 
         public string Breadcrumb { get; set; }

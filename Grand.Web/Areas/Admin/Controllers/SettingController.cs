@@ -48,6 +48,9 @@ using Grand.Core.Data;
 using MongoDB.Driver;
 using Grand.Core.Caching;
 using Grand.Web.Areas.Admin.Helpers;
+using Grand.Core.Domain.Knowledgebase;
+using Grand.Core.Domain.PushNotifications;
+using Grand.Web.Areas.Admin.Models.PushNotifications;
 
 namespace Grand.Web.Areas.Admin.Controllers
 {
@@ -2644,7 +2647,6 @@ namespace Grand.Web.Areas.Admin.Controllers
                     if (i != securitySettings.AdminAreaAllowedIpAddresses.Count - 1)
                         model.SecuritySettings.AdminAreaAllowedIpAddresses += ",";
                 }
-            model.SecuritySettings.ForceSslForAllPages = securitySettings.ForceSslForAllPages;
             model.SecuritySettings.EnableXsrfProtectionForAdminArea = securitySettings.EnableXsrfProtectionForAdminArea;
             model.SecuritySettings.EnableXsrfProtectionForPublicStore = securitySettings.EnableXsrfProtectionForPublicStore;
             model.SecuritySettings.HoneypotEnabled = securitySettings.HoneypotEnabled;
@@ -2660,7 +2662,7 @@ namespace Grand.Web.Areas.Admin.Controllers
             model.SecuritySettings.CaptchaShowOnProductReviewPage = captchaSettings.ShowOnProductReviewPage;
             model.SecuritySettings.CaptchaShowOnApplyVendorPage = captchaSettings.ShowOnApplyVendorPage;
             model.SecuritySettings.ReCaptchaVersion = captchaSettings.ReCaptchaVersion;
-            model.SecuritySettings.AvailableReCaptchaVersions = ReCaptchaVersion.Version1.ToSelectList(false).ToList();
+            model.SecuritySettings.AvailableReCaptchaVersions = ReCaptchaVersion.Version2.ToSelectList(false).ToList();
             model.SecuritySettings.ReCaptchaPublicKey = captchaSettings.ReCaptchaPublicKey;
             model.SecuritySettings.ReCaptchaPrivateKey = captchaSettings.ReCaptchaPrivateKey;
 
@@ -2728,6 +2730,10 @@ namespace Grand.Web.Areas.Admin.Controllers
                 model.DisplayMenuSettings.DisplayForumsMenu_OverrideForStore = _settingService.SettingExists(displayMenuItemSettings, x => x.DisplayForumsMenu, storeScope);
                 model.DisplayMenuSettings.DisplayContactUsMenu_OverrideForStore = _settingService.SettingExists(displayMenuItemSettings, x => x.DisplayContactUsMenu, storeScope);
             }
+
+            //knowledgebase
+            var knowledgebaseSettings = _settingService.LoadSetting<KnowledgebaseSettings>(storeScope);
+            model.KnowledgebaseSettings.Enabled = knowledgebaseSettings.Enabled;
 
 
             return View(model);
@@ -2922,7 +2928,6 @@ namespace Grand.Web.Areas.Admin.Controllers
                 foreach (string s in model.SecuritySettings.AdminAreaAllowedIpAddresses.Split(new [] { ',' }, StringSplitOptions.RemoveEmptyEntries))
                     if (!String.IsNullOrWhiteSpace(s))
                         securitySettings.AdminAreaAllowedIpAddresses.Add(s.Trim());
-            securitySettings.ForceSslForAllPages = model.SecuritySettings.ForceSslForAllPages;
             securitySettings.EnableXsrfProtectionForAdminArea = model.SecuritySettings.EnableXsrfProtectionForAdminArea;
             securitySettings.EnableXsrfProtectionForPublicStore = model.SecuritySettings.EnableXsrfProtectionForPublicStore;
             securitySettings.HoneypotEnabled = model.SecuritySettings.HoneypotEnabled;
@@ -3078,6 +3083,14 @@ namespace Grand.Web.Areas.Admin.Controllers
             else if (!String.IsNullOrEmpty(storeScope))
                 _settingService.DeleteSetting(displayMenuItemSettings, x => x.DisplayContactUsMenu, storeScope);
 
+            //Knowledgebase
+            var knowledgebaseSettings = _settingService.LoadSetting<KnowledgebaseSettings>(storeScope);
+            knowledgebaseSettings.Enabled = model.KnowledgebaseSettings.Enabled;
+            if (model.KnowledgebaseSettings.Enabled_OverrideForStore || storeScope == "")
+                _settingService.SaveSetting(knowledgebaseSettings, x => x.Enabled, storeScope, false);
+            else if (!String.IsNullOrEmpty(storeScope))
+                _settingService.DeleteSetting(knowledgebaseSettings, x => x.Enabled, storeScope);
+
             //now clear cache
             _cacheManager.Clear();
 
@@ -3194,8 +3207,7 @@ namespace Grand.Web.Areas.Admin.Controllers
                 {
                     commonSettings.UseFullTextSearch = true;
                     _settingService.SaveSetting(commonSettings);
-                    var index = Builders<Product>.IndexKeys.Text("$**");
-                    _productRepository.Collection.Indexes.CreateOneAsync(index, new CreateIndexOptions() { Name = "ProductText" });
+                    _productRepository.Collection.Indexes.CreateOneAsync(new CreateIndexModel<Product>((Builders<Product>.IndexKeys.Text("$**")), new CreateIndexOptions() { Name = "ProductText" }));
                     SuccessNotification(_localizationService.GetResource("Admin.Configuration.Settings.GeneralCommon.FullTextSettings.Enabled"));
                 }
             }
@@ -3265,6 +3277,97 @@ namespace Grand.Web.Areas.Admin.Controllers
 
             return Json(gridModel);
         }
+
+        public IActionResult PushNotifications()
+        {
+            if (!_permissionService.Authorize(StandardPermissionProvider.ManageSettings))
+                return AccessDeniedView();
+
+            var storeScope = GetActiveStoreScopeConfiguration(_storeService, _workContext);
+            var settings = _settingService.LoadSetting<PushNotificationsSettings>(storeScope);
+
+            var model = new ConfigurationModel();
+            model.AllowGuestNotifications = settings.AllowGuestNotifications;
+            model.AuthDomain = settings.AuthDomain;
+            model.DatabaseUrl = settings.DatabaseUrl;
+            model.ProjectId = settings.ProjectId;
+            model.PushApiKey = settings.PublicApiKey;
+            model.SenderId = settings.SenderId;
+            model.StorageBucket = settings.StorageBucket;
+            model.PrivateApiKey = settings.PrivateApiKey;
+
+            return View(model);
+        }
+
+        [HttpPost]
+        [AdminAntiForgery(true)]
+        public IActionResult PushNotifications(DataSourceRequest command, ConfigurationModel model)
+        {
+            if (!_permissionService.Authorize(StandardPermissionProvider.ManageSettings))
+                return AccessDeniedView();
+
+            var storeScope = this.GetActiveStoreScopeConfiguration(_storeService, _workContext);
+            var settings = _settingService.LoadSetting<PushNotificationsSettings>(storeScope);
+            settings.AllowGuestNotifications = model.AllowGuestNotifications;
+            settings.AuthDomain = model.AuthDomain;
+            settings.DatabaseUrl = model.DatabaseUrl;
+            settings.ProjectId = model.ProjectId;
+            settings.PublicApiKey = model.PushApiKey;
+            settings.SenderId = model.SenderId;
+            settings.StorageBucket = model.StorageBucket;
+            settings.PrivateApiKey = model.PrivateApiKey;
+            settings.Enabled = model.Enabled;
+            _settingService.SaveSetting(settings);
+
+            //edit js file needed by firebase
+            var jsFilePath = CommonHelper.MapPath("~/wwwroot/firebase-messaging-sw.js");
+            if (System.IO.File.Exists(jsFilePath))
+            {
+                string[] lines = System.IO.File.ReadAllLines(jsFilePath);
+
+                int i = 0;
+                foreach (var line in lines)
+                {
+                    if (line.Contains("apiKey"))
+                    {
+                        lines[i] = "apiKey: \"" + model.PushApiKey + "\",";
+                    }
+
+                    if (line.Contains("authDomain"))
+                    {
+                        lines[i] = "authDomain: \"" + model.AuthDomain + "\",";
+                    }
+
+                    if (line.Contains("databaseURL"))
+                    {
+                        lines[i] = "databaseURL: \"" + model.DatabaseUrl + "\",";
+                    }
+
+                    if (line.Contains("projectId"))
+                    {
+                        lines[i] = "projectId: \"" + model.ProjectId + "\",";
+                    }
+
+                    if (line.Contains("storageBucket"))
+                    {
+                        lines[i] = "storageBucket: \"" + model.StorageBucket + "\",";
+                    }
+
+                    if (line.Contains("messagingSenderId"))
+                    {
+                        lines[i] = "messagingSenderId: \"" + model.SenderId + "\",";
+                    }
+
+                    i++;
+                }
+
+                System.IO.File.WriteAllLines(jsFilePath, lines);
+            }
+
+            SuccessNotification(_localizationService.GetResource("Admin.Plugins.Saved"));
+            return PushNotifications();
+        }
+
         [HttpPost]
         [AdminAntiForgery(true)]
         public IActionResult SettingUpdate(SettingModel model)

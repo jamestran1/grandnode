@@ -38,8 +38,8 @@ namespace Grand.Framework.Infrastructure
             //configure authentication
             application.UseGrandAuthentication();
 
-            //set request culture
-            application.UseCulture();
+            application.UseMiddleware<CultureMiddleware>();
+
         }
 
         /// <summary>

@@ -236,7 +236,25 @@ namespace Grand.Web.Areas.Admin.Extensions
         }
 
         #endregion
+        #region Contact attributes
 
+        //attributes
+        public static ContactAttributeModel ToModel(this ContactAttribute entity)
+        {
+            return entity.MapTo<ContactAttribute, ContactAttributeModel>();
+        }
+
+        public static ContactAttribute ToEntity(this ContactAttributeModel model)
+        {
+            return model.MapTo<ContactAttributeModel, ContactAttribute>();
+        }
+
+        public static ContactAttribute ToEntity(this ContactAttributeModel model, ContactAttribute destination)
+        {
+            return model.MapTo(destination);
+        }
+
+        #endregion
         #region Customer attributes
 
         //attributes
@@ -679,6 +697,18 @@ namespace Grand.Web.Areas.Admin.Extensions
         public static Address ToEntity(this AddressModel model, Address destination)
         {
             return model.MapTo(destination);
+        }
+
+        public static string CountryName(this Address model)
+        {
+            var country = Grand.Core.Infrastructure.EngineContext.Current.Resolve<Grand.Services.Directory.ICountryService>().GetCountryById(model.CountryId);
+            return country?.Name;
+        }
+
+        public static string StateProvinceName(this Address model)
+        {
+            var state = Grand.Core.Infrastructure.EngineContext.Current.Resolve<Grand.Services.Directory.IStateProvinceService>().GetStateProvinceById(model.StateProvinceId);
+            return state?.Name;
         }
 
         public static void PrepareCustomAddressAttributes(this AddressModel model,

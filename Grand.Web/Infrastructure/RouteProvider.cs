@@ -152,21 +152,28 @@ namespace Grand.Web.Infrastructure
             //add product to cart (without any attributes and options). used on catalog pages.
             routeBuilder.MapLocalizedRoute("AddProductToCart-Catalog",
                             "addproducttocart/catalog/{productId}/{shoppingCartTypeId}",
-                            new { controller = "ShoppingCart", action = "AddProductToCart_Catalog" },
+                            new { controller = "AddToCart", action = "AddProductToCart_Catalog" },
                             new { productId = @"\w+", shoppingCartTypeId = @"\d+" },
                             new[] { "Grand.Web.Controllers" });
             //add product to cart (with attributes and options). used on the product details pages.
             routeBuilder.MapLocalizedRoute("AddProductToCart-Details",
                             "addproducttocart/details/{productId}/{shoppingCartTypeId}",
-                            new { controller = "ShoppingCart", action = "AddProductToCart_Details" },
+                            new { controller = "AddToCart", action = "AddProductToCart_Details" },
                             new { productId = @"\w+", shoppingCartTypeId = @"\d+" },
                             new[] { "Grand.Web.Controllers" });
 
             //add product to bid, use on the product details page
             routeBuilder.MapLocalizedRoute("AddBid",
                             "addbid/AddBid/{productId}/{shoppingCartTypeId}",
-                            new { controller = "ShoppingCart", action = "AddBid" },
+                            new { controller = "AddToCart", action = "AddBid" },
                             new { productId = @"\w+", shoppingCartTypeId = @"\d+" },
+                            new[] { "Grand.Web.Controllers" });
+
+            //quick view product.
+            routeBuilder.MapLocalizedRoute("QuickView-Product",
+                            "quickview/product/{productId}",
+                            new { controller = "Product", action = "QuickView" },
+                            new { productId = @"\w+" },
                             new[] { "Grand.Web.Controllers" });
 
             //product tags
@@ -449,11 +456,16 @@ namespace Grand.Web.Infrastructure
             //product attributes with "upload file" type
             routeBuilder.MapLocalizedRoute("UploadFileProductAttribute",
                             "uploadfileproductattribute/{attributeId}",
-                            new { controller = "ShoppingCart", action = "UploadFileProductAttribute" });
+                            new { controller = "Product", action = "UploadFileProductAttribute" });
             //checkout attributes with "upload file" type
             routeBuilder.MapLocalizedRoute("UploadFileCheckoutAttribute",
                             "uploadfilecheckoutattribute/{attributeId}",
                             new { controller = "ShoppingCart", action = "UploadFileCheckoutAttribute" });
+
+            // contact attributes with "upload file" type
+            routeBuilder.MapLocalizedRoute("UploadFileContactAttribute",
+                            "uploadfilecontactattribute/{attributeId}",
+                            new { controller = "Common", action = "UploadFileContactAttribute" });
 
             //forums
             routeBuilder.MapLocalizedRoute("ActiveDiscussions",
@@ -570,6 +582,42 @@ namespace Grand.Web.Infrastructure
             //page not found
             routeBuilder.MapLocalizedRoute("PageNotFound", "page-not-found",
                             new { controller = "Common", action = "PageNotFound" });
+
+            //push notifications
+            routeBuilder.MapRoute(
+               "PushNotifications.Send",
+               "Admin/PushNotifications/Send",
+            new { controller = "PushNotifications", action = "Send" });
+
+            routeBuilder.MapRoute(
+                "PushNotifications.Messages",
+                "Admin/PushNotifications/Messages",
+            new { controller = "PushNotifications", action = "Messages" });
+
+            routeBuilder.MapRoute(
+               "PushNotifications.Receivers",
+               "Admin/PushNotifications/Receivers",
+            new { controller = "PushNotifications", action = "Receivers" });
+
+            routeBuilder.MapRoute(
+                "PushNotifications.DeleteReceiver",
+                "Admin/PushNotifications/DeleteReceiver",
+                new { controller = "PushNotifications", action = "DeleteReceiver" });
+
+            routeBuilder.MapRoute(
+                "PushNotifications.Configure",
+                "Admin/PushNotifications/Configure",
+                new { controller = "PushNotifications", action = "Configure" });
+
+            routeBuilder.MapRoute(
+                "PushNotifications.PushMessagesList",
+                "Admin/PushNotifications/PushMessagesList",
+            new { controller = "PushNotifications", action = "PushMessagesList" });
+
+            routeBuilder.MapRoute(
+                "PushNotifications.PushReceiversList",
+                "Admin/PushNotifications/PushReceiversList",
+            new { controller = "PushNotifications", action = "PushReceiversList" });
         }
 
         public int Priority

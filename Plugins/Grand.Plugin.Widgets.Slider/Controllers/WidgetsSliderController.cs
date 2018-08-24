@@ -7,8 +7,8 @@ using Grand.Services.Media;
 using Grand.Services.Stores;
 using Grand.Framework.Controllers;
 using System;
-using Microsoft.AspNetCore.Mvc;
 using Grand.Framework.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Grand.Plugin.Widgets.Slider.Controllers
 {
@@ -41,8 +41,7 @@ namespace Grand.Plugin.Widgets.Slider.Controllers
             this._localizationService = localizationService;
         }
 
-        [AuthorizeAdmin]
-        public ActionResult Configure()
+        public IActionResult Configure()
         {
             //load settings for a chosen store scope
             var storeScope = this.GetActiveStoreScopeConfiguration(_storeService, _workContext);
@@ -87,8 +86,7 @@ namespace Grand.Plugin.Widgets.Slider.Controllers
         }
 
         [HttpPost]
-        [AuthorizeAdmin]
-        public ActionResult Configure(ConfigurationModel model)
+        public IActionResult Configure(ConfigurationModel model)
         {
             //load settings for a chosen store scope
             var storeScope = this.GetActiveStoreScopeConfiguration(_storeService, _workContext);

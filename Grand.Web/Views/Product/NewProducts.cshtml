@@ -14,8 +14,8 @@
             <div class="row">
                 @foreach (var product in Model)
                 {
-                    <div class="col-md-4">
-                        @await Html.PartialAsync("_ProductBox", product)
+                    <div class="col-lg-4 col-sm-6 col-6 product-container">
+                        <partial name="_ProductBox" model="product" />
                     </div>
                 }
             </div>

@@ -33,6 +33,8 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.Http;
+using Grand.Services.Discounts;
 
 namespace Grand.Web.Services
 {
@@ -167,6 +169,7 @@ namespace Grand.Web.Services
                     ProductType = product.ProductType,
                     Sku = product.Sku,
                     Gtin = product.Gtin,
+                    Flag = product.Flag,
                     ManufacturerPartNumber = product.ManufacturerPartNumber,
                     IsFreeShipping = product.IsFreeShipping,
                     ShowSku = showSku,
@@ -579,6 +582,7 @@ namespace Grand.Web.Services
                 Name = product.GetLocalized(x => x.Name),
                 ShortDescription = product.GetLocalized(x => x.ShortDescription),
                 FullDescription = product.GetLocalized(x => x.FullDescription),
+                Flag = product.Flag,
                 MetaKeywords = product.GetLocalized(x => x.MetaKeywords),
                 MetaDescription = product.GetLocalized(x => x.MetaDescription),
                 MetaTitle = product.GetLocalized(x => x.MetaTitle),
@@ -1263,7 +1267,7 @@ namespace Grand.Web.Services
 
                 if (reservations.Any())
                 {
-                    var first = reservations.Where(x => x.Date.Date >= DateTime.UtcNow.Date).OrderBy(x => x.Date).FirstOrDefault();
+                    var first = reservations.Where(x => x.Date >= DateTime.UtcNow).OrderBy(x => x.Date).FirstOrDefault();
                     if (first != null)
                     {
                         model.StartDate = first.Date;
@@ -1471,5 +1475,94 @@ namespace Grand.Web.Services
                     Core.Html.HtmlHelper.FormatText(model.Message, false, true, false, false, false, false));
 
         }
+
+        public virtual ProductDetailsAttributeChangeModel PrepareProductDetailsAttributeChangeModel
+            (Product product, bool validateAttributeConditions, bool loadPicture, IFormCollection form)
+        {
+            var model = new ProductDetailsAttributeChangeModel();
+
+            var shoppingCartWebService = EngineContext.Current.Resolve<IShoppingCartWebService>();
+
+            string attributeXml = shoppingCartWebService.ParseProductAttributes(product, form);
+
+            //rental attributes
+            DateTime? rentalStartDate = null;
+            DateTime? rentalEndDate = null;
+            if (product.ProductType == ProductType.Reservation)
+            {
+                shoppingCartWebService.ParseReservationDates(product, form, out rentalStartDate, out rentalEndDate);
+            }
+
+            model.Sku = product.FormatSku(attributeXml, _productAttributeParser);
+            model.Mpn = product.FormatMpn(attributeXml, _productAttributeParser);
+            model.Gtin = product.FormatGtin(attributeXml, _productAttributeParser);
+
+            if (_permissionService.Authorize(StandardPermissionProvider.DisplayPrices) && !product.CustomerEntersPrice && product.ProductType != ProductType.Auction)
+            {
+                //we do not calculate price of "customer enters price" option is enabled
+                decimal finalPrice = _priceCalculationService.GetUnitPrice(product,
+                    _workContext.CurrentCustomer,
+                    ShoppingCartType.ShoppingCart,
+                    1, attributeXml, 0,
+                    rentalStartDate, rentalEndDate,
+                    true, out decimal discountAmount, out List<AppliedDiscount> scDiscounts);
+                decimal finalPriceWithDiscountBase = _taxService.GetProductPrice(product, finalPrice, out decimal taxRate);
+                decimal finalPriceWithDiscount = _currencyService.ConvertFromPrimaryStoreCurrency(finalPriceWithDiscountBase, _workContext.WorkingCurrency);
+                model.Price = _priceFormatter.FormatPrice(finalPriceWithDiscount);
+            }
+            //stock
+            model.StockAvailability = product.FormatStockMessage(attributeXml, _localizationService, _productAttributeParser, _storeContext);
+
+            //conditional attributes
+            if (validateAttributeConditions)
+            {
+                var attributes = product.ProductAttributeMappings;
+                foreach (var attribute in attributes)
+                {
+                    var conditionMet = _productAttributeParser.IsConditionMet(product, attribute, attributeXml);
+                    if (conditionMet.HasValue)
+                    {
+                        if (conditionMet.Value)
+                            model.EnabledAttributeMappingIds.Add(attribute.Id);
+                        else
+                            model.DisabledAttributeMappingids.Add(attribute.Id);
+                    }
+                }
+            }
+            //picture. used when we want to override a default product picture when some attribute is selected
+            if (loadPicture)
+            {
+
+                //first, try to get product attribute combination picture
+                var pictureId = product.ProductAttributeCombinations.Where(x => x.AttributesXml == attributeXml).FirstOrDefault()?.PictureId ?? "";
+                //then, let's see whether we have attribute values with pictures
+                if (string.IsNullOrEmpty(pictureId))
+                {
+                    pictureId = _productAttributeParser.ParseProductAttributeValues(product, attributeXml)
+                        .FirstOrDefault(attributeValue => !string.IsNullOrEmpty(attributeValue.PictureId))?.PictureId ?? "";
+                }
+
+                if (!string.IsNullOrEmpty(pictureId))
+                {
+                    var productAttributePictureCacheKey = string.Format(ModelCacheEventConsumer.PRODUCTATTRIBUTE_PICTURE_MODEL_KEY,
+                        pictureId, _webHelper.IsCurrentConnectionSecured(), _storeContext.CurrentStore.Id);
+                    var pictureModel = _cacheManager.Get(productAttributePictureCacheKey, () =>
+                    {
+                        var picture = _pictureService.GetPictureById(pictureId);
+                        return picture == null ? new PictureModel() : new PictureModel
+                        {
+                            FullSizeImageUrl = _pictureService.GetPictureUrl(picture),
+                            ImageUrl = _pictureService.GetPictureUrl(picture, _mediaSettings.ProductDetailsPictureSize)
+                        };
+                    });
+                    model.PictureFullSizeUrl = pictureModel.FullSizeImageUrl;
+                    model.PictureDefaultSizeUrl = pictureModel.ImageUrl;
+                }
+
+            }
+
+            return model;
+        }
+
     }
 }

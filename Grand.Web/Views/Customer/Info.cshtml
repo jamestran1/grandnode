@@ -1,4 +1,5 @@
 ﻿@model CustomerInfoModel
+@inject Grand.Core.Domain.Customers.CustomerSettings customerSettings
 @using Grand.Web.Models.Customer;
 @using Grand.Core;
 @{
@@ -8,13 +9,13 @@
     Html.AddTitleParts(T("PageTitle.Account").Text);
 }
 @section left
-{
+    {
     @await Component.InvokeAsync("CustomerNavigation", new { selectedTabId = CustomerNavigationEnum.Info })
 }
 
 @if (Model.CountryEnabled && Model.StateProvinceEnabled)
 {
-    <script type="text/javascript">
+    <script>
         $(function () {
             $("#@Html.IdFor(model => model.CountryId)").change(function () {
                 var selectedItem = $(this).val();
@@ -42,7 +43,7 @@
         });
     </script>
 }
-<script type="text/javascript">
+<script>
     $(function () {
         $("#@Html.IdFor(model => model.Newsletter)").click(toggleNewsletterCat);
         toggleNewsletterCat();
@@ -57,10 +58,13 @@
         }
     });
 </script>
-<div class="page account-page customer-info-page">
-    <button type="button" class="btn btn-info btn-sm float-sm-right" onclick="location.href='/customer/export'">
-        <i class="fa fa-file-excel-o" aria-hidden="true"></i> @T("Account.CustomerExportToXls")
-    </button>
+<div class="page account-page customer-info-page pl-lg-3">
+    @if (customerSettings.AllowUsersToExportData)
+    {
+        <button type="button" class="btn btn-info btn-sm float-sm-right" onclick="location.href='/customer/export'">
+            <i class="fa fa-file-excel-o" aria-hidden="true"></i> @T("Account.CustomerExportToXls")
+        </button>
+    }
     <h2 class="generalTitle">@T("Account.CustomerInfo")</h2>
     <form asp-route="CustomerInfo" method="post">
         <div asp-validation-summary="ModelOnly" class="message-error"></div>
@@ -78,14 +82,14 @@
                         </div>
                         <div class="gender">
                             <div class="flex-row">
-                                <label class="custom-control custom-radio male">
+                                <label class="custom-control custom-radio male d-inline-block">
                                     <input type="radio" asp-for="Gender" value="M" checked="@(Model.Gender == "M")" id="gender-male" class="custom-control-input" />
-                                    <span class="custom-control-indicator"></span>
+                                    <span class="custom-control-label"></span>
                                     <span class="custom-control-description forcheckbox" for="gender-male">@T("Account.Fields.Gender.Male")</span>
                                 </label>
-                                <label class="custom-control custom-radio female">
+                                <label class="custom-control custom-radio female d-inline-block">
                                     <input type="radio" asp-for="Gender" value="F" checked="@(Model.Gender == "F")" id="gender-female" class="custom-control-input" />
-                                    <span class="custom-control-indicator"></span>
+                                    <span class="custom-control-label"></span>
                                     <span class="custom-control-description forcheckbox" for="gender-female">@T("Account.Fields.Gender.Female")</span>
                                 </label>
                             </div>
@@ -115,10 +119,10 @@
                                 @T("Account.Fields.DateOfBirth"):
                             </div>
                         </div>
-                        <div class="d-flex justify-content-between flex-row">
-                            @Html.DatePickerDropDowns(Html.FieldNameFor(x => x.DateOfBirthDay),
-                                                  Html.FieldNameFor(x => x.DateOfBirthMonth),
-                                                  Html.FieldNameFor(x => x.DateOfBirthYear),
+                        <div class="input-group">
+                            @Html.DatePickerDropDowns(Html.NameFor(x => x.DateOfBirthDay),
+                                                  Html.NameFor(x => x.DateOfBirthMonth),
+                                                  Html.NameFor(x => x.DateOfBirthYear),
                                                   DateTime.Now.Year - 110,
                                                   DateTime.Now.Year,
                                                   Model.DateOfBirthDay,
@@ -152,7 +156,7 @@
                                 <span asp-validation-for="Username"></span>
                                 @if (Model.CheckUsernameAvailabilityEnabled)
                                 {
-                                    @await Html.PartialAsync("_CheckUsernameAvailability")
+                                    <partial name="_CheckUsernameAvailability"/>
                                 }
                             </div>
                         </fieldset>
@@ -196,10 +200,10 @@
             </div>
         }
         @if (Model.StreetAddressEnabled ||
-          Model.StreetAddress2Enabled ||
-          Model.ZipPostalCodeEnabled ||
-          Model.CityEnabled ||
-          Model.CountryEnabled)
+        Model.StreetAddress2Enabled ||
+        Model.ZipPostalCodeEnabled ||
+        Model.CityEnabled ||
+        Model.CountryEnabled)
         {
             <div class="card mb-3">
                 <h3 class="card-header">
@@ -311,16 +315,16 @@
                             <div class="form-group">
                                 <label class="custom-control custom-checkbox">
                                     <input class="custom-control-input" asp-for="Newsletter" />
-                                    <span class="custom-control-indicator"></span>
+                                    <span class="custom-control-label"></span>
                                     <label asp-for="Newsletter" class="custom-control-description">@T("Account.Fields.Newsletter")</label>
                                 </label>
                             </div>
-                            @await Html.PartialAsync("_NewsLetterCategories", Model.NewsletterCategories)
+                            <partial name="_NewsLetterCategories" model="Model.NewsletterCategories" />
                         }
 
                         @if (Model.CustomerAttributes.Any())
                         {
-                            @await Html.PartialAsync("_CustomerAttributes", Model.CustomerAttributes)
+                            <partial name="_CustomerAttributes" model="Model.CustomerAttributes" />
                         }
                     </fieldset>
                 </div>
@@ -407,24 +411,25 @@
                             </table>
                         </div>
                     }
+                    @if (Model.NumberOfExternalAuthenticationProviders > Model.AssociatedExternalAuthRecords.Count)
+                    {
+                        //we can add more external records
+                        <div class="form-fields add-more-external-records">
+                            @T("Account.AssociatedExternalAuth.AddMoreRecords") <a href="@Url.RouteUrl("Login", null, "http")">@Url.RouteUrl("Login", null, "http")</a>
+                        </div>
+                    }
                 </div>
             </div>
         }
 
-        @if (Model.NumberOfExternalAuthenticationProviders > Model.AssociatedExternalAuthRecords.Count)
-        {
-            //we can add more external records
-            <div class="form-fields add-more-external-records">
-                @T("Account.AssociatedExternalAuth.AddMoreRecords") <a href="@Url.RouteUrl("Login", null, "http")">@Url.RouteUrl("Login", null, "http")</a>
-            </div>
-        }
+        
         <div class="generalMarginSupporter">
             <input type="submit" value="@T("Common.Save")" name="save-info-button" class="btn btn-secondary save-customer-info-button" />
         </div>
     </form>
 </div>
 
-<script type="text/javascript">
+<script>
     function removeexternalassociation(itemId) {
         if (confirm('@T("Common.AreYouSure")')) {
             var postData = {

@@ -360,6 +360,7 @@ namespace Grand.Services.Catalog
                 .Set(x => x.DownloadActivationTypeId, product.DownloadActivationTypeId)
                 .Set(x => x.DownloadExpirationDays, product.DownloadExpirationDays)
                 .Set(x => x.DownloadId, product.DownloadId)
+                .Set(x => x.Flag, product.Flag)
                 .Set(x => x.FullDescription, product.FullDescription)
                 .Set(x => x.GiftCardTypeId, product.GiftCardTypeId)
                 .Set(x => x.Gtin, product.Gtin)
@@ -563,7 +564,7 @@ namespace Grand.Services.Catalog
                 filter = filter & (builder.AnyIn(x => x.Stores, currentStoreId) | builder.Where(x => !x.LimitedToStores));
             }
 
-            return Convert.ToInt32(_productRepository.Collection.Find(filter).CountAsync().Result);
+            return Convert.ToInt32(_productRepository.Collection.Find(filter).CountDocuments());
 
         }
 
@@ -1164,8 +1165,6 @@ namespace Grand.Services.Catalog
 
             //event notification
             _eventPublisher.EntityUpdated(product);
-
-            //UpdateProduct(product);
         }
 
         public virtual void UpdateProductReview(ProductReview productreview)
@@ -1181,7 +1180,10 @@ namespace Grand.Services.Catalog
                 .Set(x => x.ReplyText, productreview.ReplyText)
                 .Set(x => x.Signature, productreview.Signature)
                 .Set(x => x.UpdatedOnUtc, DateTime.UtcNow)
-                .Set(x => x.IsApproved, productreview.IsApproved);
+                .Set(x => x.IsApproved, productreview.IsApproved)
+                .Set(x => x.HelpfulNoTotal, productreview.HelpfulNoTotal)
+                .Set(x => x.HelpfulYesTotal, productreview.HelpfulYesTotal)
+                .Set(x => x.ProductReviewHelpfulnessEntries, productreview.ProductReviewHelpfulnessEntries);
 
             var result = _productReviewRepository.Collection.UpdateManyAsync(filter, update).Result;
 

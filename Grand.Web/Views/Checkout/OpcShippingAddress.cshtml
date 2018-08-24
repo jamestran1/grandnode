@@ -7,7 +7,7 @@
             <p class="selector">
                 <label class="custom-control custom-checkbox">
                     @Html.CheckBoxFor(x => x.PickUpInStore, new { @class = "custom-control-input", @onclick = "Shipping.togglePickUpInStore(this)" })
-                    <span class="custom-control-indicator"></span>
+                    <span class="custom-control-label"></span>
                     <span class="custom-control-description" for="@Html.IdFor(model => model.PickUpInStore)">
                         @T("Checkout.PickupPoints").Text
                     </span>
@@ -16,7 +16,7 @@
             <p class="description">
                 <i>@T("Checkout.PickupPoints.Description")</i>
             </p>
-            <script type="text/javascript">
+            <script>
                 $(document).ready(function () {
                     Shipping.togglePickUpInStore($('#@Html.IdFor(model => model.PickUpInStore)'));
                 });
@@ -142,7 +142,7 @@
                     @{
                         var dataDictAddress = new ViewDataDictionary(ViewData);
                         dataDictAddress.TemplateInfo.HtmlFieldPrefix = "ShippingNewAddress";
-                        @await Html.PartialAsync("_CreateOrUpdateAddress", Model.NewAddress, dataDictAddress)
+                        <partial name="_CreateOrUpdateAddress" model="Model.NewAddress" view-data="dataDictAddress" />
                     }
                 </div>
             </div>

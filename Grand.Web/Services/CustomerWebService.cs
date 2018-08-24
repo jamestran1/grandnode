@@ -29,6 +29,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Grand.Core.Domain.Vendors;
 using Grand.Web.Models.Newsletter;
+using Grand.Core.Domain.Localization;
 
 namespace Grand.Web.Services
 {
@@ -138,14 +139,22 @@ namespace Grand.Web.Services
             this._vendorSettings = vendorSettings;
         }
 
-        public virtual void TryAssociateAccountWithExternalAccount(Customer customer)
+        public virtual void DeleteAccount(Customer customer)
         {
-            var parameters = ExternalAuthorizerHelper.RetrieveParametersFromRoundTrip(true);
+            //send notification to customer
+            _workflowMessageService.SendCustomerDeleteStoreOwnerNotification(customer, EngineContext.Current.Resolve<LocalizationSettings>().DefaultAdminLanguageId);
 
-            if (parameters != null && _externalAuthenticationService.GetUserByExternalAuthenticationParameters(parameters) == null)
-                _externalAuthenticationService.AssociateExternalAccountWithUser(customer, parameters);
+            //delete emails
+            EngineContext.Current.Resolve<IQueuedEmailService>().DeleteCustomerEmail(customer.Email);
+
+            //delete newsletter subscription
+            var newsletter = _newsLetterSubscriptionService.GetNewsLetterSubscriptionByEmailAndStoreId(customer.Email, _storeContext.CurrentStore.Id);
+            if (newsletter != null)
+                _newsLetterSubscriptionService.DeleteNewsLetterSubscription(newsletter);
+
+            //delete account
+            EngineContext.Current.Resolve<ICustomerService>().DeleteCustomer(customer);
         }
-
 
         public virtual IList<CustomerAttributeModel> PrepareCustomAttributes(Customer customer,
             string overrideAttributesXml = "")

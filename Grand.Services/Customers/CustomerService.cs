@@ -278,16 +278,24 @@ namespace Grand.Services.Customers
                 throw new GrandException(string.Format("System customer account ({0}) could not be deleted", customer.SystemName));
 
             customer.Deleted = true;
+            customer.Email = $"DELETED@{DateTime.UtcNow.Ticks}.COM";
+            customer.Username = customer.Email;
 
-            if (_customerSettings.SuffixDeletedCustomers)
-            {
-                if (!String.IsNullOrEmpty(customer.Email))
-                    customer.Email += "-DELETED";
-                if (!String.IsNullOrEmpty(customer.Username))
-                    customer.Username += "-DELETED";
-            }
-
-            UpdateCustomer(customer);
+            //delete address
+            customer.Addresses.Clear();
+            customer.BillingAddress = null;
+            customer.ShippingAddress = null;
+            //delete generic attr
+            customer.GenericAttributes.Clear();
+            //delete shopping cart
+            customer.ShoppingCartItems.Clear();
+            customer.HasShoppingCartItems = false;
+            //delete customer roles
+            customer.CustomerRoles.Clear();
+            //clear customer tags
+            customer.CustomerTags.Clear();
+            //update customer
+            _customerRepository.Update(customer);
         }
 
         /// <summary>
@@ -799,14 +807,25 @@ namespace Grand.Services.Customers
         {
             var builder = Builders<CustomerReminderHistory>.Filter;
             var filter = builder.Eq(x => x.CustomerId, customerId);
-            filter = filter & builder.Eq(x => x.Status, (int)CustomerReminderHistoryStatusEnum.Started);
+            var customerReminderRepository = Grand.Core.Infrastructure.EngineContext.Current.Resolve<IRepository<CustomerReminderHistory>>();
 
+            //update started reminders
+            filter = filter & builder.Eq(x => x.Status, (int)CustomerReminderHistoryStatusEnum.Started);
             var update = Builders<CustomerReminderHistory>.Update
                 .Set(x => x.EndDate, DateTime.UtcNow)
                 .Set(x => x.Status, (int)CustomerReminderHistoryStatusEnum.CompletedOrdered)
                 .Set(x => x.OrderId, orderId);
+            customerReminderRepository.Collection.UpdateManyAsync(filter, update);
 
-            var customerReminderRepository = Grand.Core.Infrastructure.EngineContext.Current.Resolve<IRepository<CustomerReminderHistory>>();
+            //update Ended reminders
+            filter = builder.Eq(x => x.CustomerId, customerId);
+            filter = filter & builder.Eq(x => x.Status, (int)CustomerReminderHistoryStatusEnum.CompletedReminder);
+            filter = filter & builder.Gt(x => x.EndDate, DateTime.UtcNow.AddHours(-36));
+
+            update = Builders<CustomerReminderHistory>.Update
+                .Set(x => x.Status, (int)CustomerReminderHistoryStatusEnum.CompletedOrdered)
+                .Set(x => x.OrderId, orderId);
+
             customerReminderRepository.Collection.UpdateManyAsync(filter, update);
 
         }
@@ -1151,6 +1170,7 @@ namespace Grand.Services.Customers
                 .Set(x => x.Addresses.ElementAt(-1).Address2, address.Address2)
                 .Set(x => x.Addresses.ElementAt(-1).City, address.City)
                 .Set(x => x.Addresses.ElementAt(-1).Company, address.Company)
+                .Set(x => x.Addresses.ElementAt(-1).VatNumber, address.VatNumber)
                 .Set(x => x.Addresses.ElementAt(-1).CountryId, address.CountryId)
                 .Set(x => x.Addresses.ElementAt(-1).CustomAttributes, address.CustomAttributes)
                 .Set(x => x.Addresses.ElementAt(-1).Email, address.Email)

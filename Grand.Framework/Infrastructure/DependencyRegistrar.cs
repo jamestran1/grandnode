@@ -52,6 +52,8 @@ using Grand.Framework.UI;
 using MongoDB.Driver;
 using Grand.Core.Http;
 using Grand.Services.Knowledgebase;
+using Grand.Services.PushNotifications;
+using Grand.Services;
 
 namespace Grand.Framework.Infrastructure
 {
@@ -85,8 +87,10 @@ namespace Grand.Framework.Infrastructure
 
             if (dataProviderSettings != null && dataProviderSettings.IsValid())
             {
-                builder.Register<IMongoClient>(c => new MongoClient(dataProviderSettings.DataConnectionString)).SingleInstance();
-                builder.Register<IMongoDBContext>(c => new MongoDBContext(dataProviderSettings.DataConnectionString)).InstancePerLifetimeScope();
+                var connectionString = dataProviderSettings.DataConnectionString;
+                var databaseName = new MongoUrl(connectionString).DatabaseName;
+                builder.Register(c => new MongoClient(connectionString).GetDatabase(databaseName)).SingleInstance();
+                builder.Register<IMongoDBContext>(c => new MongoDBContext(connectionString)).InstancePerLifetimeScope();
             }
             else
             {
@@ -237,10 +241,13 @@ namespace Grand.Framework.Infrastructure
             builder.RegisterType<InteractiveFormService>().As<IInteractiveFormService>().InstancePerLifetimeScope();
             builder.RegisterType<EmailAccountService>().As<IEmailAccountService>().InstancePerLifetimeScope();
             builder.RegisterType<WorkflowMessageService>().As<IWorkflowMessageService>().InstancePerLifetimeScope();
+            builder.RegisterType<ContactAttributeFormatter>().As<IContactAttributeFormatter>().InstancePerLifetimeScope();
+            builder.RegisterType<ContactAttributeParser>().As<IContactAttributeParser>().InstancePerLifetimeScope();
+            builder.RegisterType<ContactAttributeService>().As<IContactAttributeService>().InstancePerLifetimeScope();
             builder.RegisterType<MessageTokenProvider>().As<IMessageTokenProvider>().InstancePerLifetimeScope();
             builder.RegisterType<Tokenizer>().As<ITokenizer>().InstancePerLifetimeScope();
             builder.RegisterType<EmailSender>().As<IEmailSender>().InstancePerLifetimeScope();
-
+            builder.RegisterType<HistoryService>().As<IHistoryService>().InstancePerLifetimeScope();
             builder.RegisterType<CheckoutAttributeFormatter>().As<ICheckoutAttributeFormatter>().InstancePerLifetimeScope();
             builder.RegisterType<CheckoutAttributeParser>().As<ICheckoutAttributeParser>().InstancePerLifetimeScope();
             builder.RegisterType<CheckoutAttributeService>().As<ICheckoutAttributeService>().InstancePerLifetimeScope();
@@ -279,6 +286,7 @@ namespace Grand.Framework.Infrastructure
 
             builder.RegisterType<ForumService>().As<IForumService>().InstancePerLifetimeScope();
             builder.RegisterType<KnowledgebaseService>().As<IKnowledgebaseService>().InstancePerLifetimeScope();
+            builder.RegisterType<PushNotificationsService>().As<IPushNotificationsService>().InstancePerLifetimeScope();
             builder.RegisterType<PollService>().As<IPollService>().InstancePerLifetimeScope();
             builder.RegisterType<BlogService>().As<IBlogService>().InstancePerLifetimeScope();
             builder.RegisterType<WidgetService>().As<IWidgetService>().InstancePerLifetimeScope();

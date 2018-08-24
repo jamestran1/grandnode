@@ -1,7 +1,5 @@
-﻿using System;
-using System.Linq;
-using Microsoft.AspNetCore.Mvc;
-using Grand.Core;
+﻿using Grand.Core;
+using Grand.Core.Domain;
 using Grand.Core.Domain.Common;
 using Grand.Core.Domain.Customers;
 using Grand.Core.Domain.Forums;
@@ -9,11 +7,17 @@ using Grand.Core.Domain.Localization;
 using Grand.Core.Domain.Media;
 using Grand.Core.Domain.Messages;
 using Grand.Core.Domain.Tax;
+using Grand.Core.Infrastructure;
+using Grand.Framework.Controllers;
+using Grand.Framework.Mvc.Filters;
+using Grand.Framework.Security;
+using Grand.Framework.Security.Captcha;
 using Grand.Services.Authentication;
 using Grand.Services.Authentication.External;
 using Grand.Services.Common;
 using Grand.Services.Customers;
 using Grand.Services.Directory;
+using Grand.Services.Events;
 using Grand.Services.Helpers;
 using Grand.Services.Localization;
 using Grand.Services.Logging;
@@ -22,28 +26,23 @@ using Grand.Services.Messages;
 using Grand.Services.Orders;
 using Grand.Services.Tax;
 using Grand.Web.Extensions;
-using Grand.Framework.Controllers;
-using Grand.Framework.Security;
-using Grand.Framework.Security.Captcha;
 using Grand.Web.Models.Customer;
-using Grand.Services.Events;
-using Grand.Core.Domain;
 using Grand.Web.Services;
-using Grand.Core.Infrastructure;
-using System.Net;
-using Grand.Framework.Mvc.Filters;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Net;
 
 namespace Grand.Web.Controllers
 {
     public partial class CustomerController : BasePublicController
     {
         #region Fields
+
         private readonly ICustomerWebService _customerWebService;
         private readonly IGrandAuthenticationService _authenticationService;
-        private readonly DateTimeSettings _dateTimeSettings;
-        private readonly TaxSettings _taxSettings;
         private readonly ILocalizationService _localizationService;
         private readonly IWorkContext _workContext;
         private readonly IStoreContext _storeContext;
@@ -52,15 +51,15 @@ namespace Grand.Web.Controllers
         private readonly IGenericAttributeService _genericAttributeService;
         private readonly ICustomerRegistrationService _customerRegistrationService;
         private readonly ITaxService _taxService;
-        private readonly CustomerSettings _customerSettings;
         private readonly ICountryService _countryService;
         private readonly INewsLetterSubscriptionService _newsLetterSubscriptionService;
-        private readonly IShoppingCartService _shoppingCartService;
-        private readonly IWebHelper _webHelper;
         private readonly ICustomerActivityService _customerActivityService;
         private readonly IAddressWebService _addressWebService;
         private readonly IEventPublisher _eventPublisher;
         private readonly IWorkflowMessageService _workflowMessageService;
+        private readonly CustomerSettings _customerSettings;
+        private readonly DateTimeSettings _dateTimeSettings;
+        private readonly TaxSettings _taxSettings;
         private readonly LocalizationSettings _localizationSettings;
         private readonly CaptchaSettings _captchaSettings;
 
@@ -71,8 +70,6 @@ namespace Grand.Web.Controllers
         public CustomerController(
             ICustomerWebService customerWebService,
             IGrandAuthenticationService authenticationService,
-            DateTimeSettings dateTimeSettings, 
-            TaxSettings taxSettings,
             ILocalizationService localizationService,
             IWorkContext workContext,
             IStoreContext storeContext,
@@ -81,17 +78,17 @@ namespace Grand.Web.Controllers
             IGenericAttributeService genericAttributeService,
             ICustomerRegistrationService customerRegistrationService,
             ITaxService taxService, 
-            CustomerSettings customerSettings,
             ICountryService countryService,
             INewsLetterSubscriptionService newsLetterSubscriptionService,
-            IShoppingCartService shoppingCartService,
-            IWebHelper webHelper,
             ICustomerActivityService customerActivityService,
             IAddressWebService addressWebService,
             IEventPublisher eventPublisher,
             IWorkflowMessageService workflowMessageService,
+            CaptchaSettings captchaSettings,
+            CustomerSettings customerSettings,
+            DateTimeSettings dateTimeSettings,
             LocalizationSettings localizationSettings,
-            CaptchaSettings captchaSettings
+            TaxSettings taxSettings
             )
         {
             this._customerWebService = customerWebService;
@@ -109,8 +106,6 @@ namespace Grand.Web.Controllers
             this._customerSettings = customerSettings;
             this._countryService = countryService;
             this._newsLetterSubscriptionService = newsLetterSubscriptionService;
-            this._shoppingCartService = shoppingCartService;
-            this._webHelper = webHelper;
             this._customerActivityService = customerActivityService;
             this._addressWebService = addressWebService;
             this._workflowMessageService = workflowMessageService;
@@ -136,7 +131,6 @@ namespace Grand.Web.Controllers
 
         #region Login / logout
         
-        [HttpsRequirement(SslRequirement.Yes)]
         //available even when a store is closed
         [CheckAccessClosedStore(true)]
         //available even when navigation is not allowed
@@ -154,7 +148,8 @@ namespace Grand.Web.Controllers
         [CheckAccessPublicStore(true)]
         [ValidateCaptcha]
         [PublicAntiForgery]
-        public virtual IActionResult Login(LoginModel model, string returnUrl, bool captchaValid)
+        public virtual IActionResult Login(LoginModel model, string returnUrl, bool captchaValid,
+                       [FromServices] IShoppingCartService shoppingCartService)
         {
             //validate CAPTCHA
             if (_captchaSettings.Enabled && _captchaSettings.ShowOnLoginPage && !captchaValid)
@@ -176,7 +171,7 @@ namespace Grand.Web.Controllers
                             var customer = _customerSettings.UsernamesEnabled ? _customerService.GetCustomerByUsername(model.Username) : _customerService.GetCustomerByEmail(model.Email);
 
                             //migrate shopping cart
-                            _shoppingCartService.MigrateShoppingCart(_workContext.CurrentCustomer, customer, true);
+                            shoppingCartService.MigrateShoppingCart(_workContext.CurrentCustomer, customer, true);
 
                             //sign in new customer
                             _authenticationService.SignIn(customer, model.RememberMe);
@@ -225,11 +220,8 @@ namespace Grand.Web.Controllers
         [CheckAccessClosedStore(true)]
         //available even when navigation is not allowed
         [CheckAccessPublicStore(true)]
-        public virtual IActionResult Logout()
+        public virtual IActionResult Logout([FromServices] StoreInformationSettings storeInformationSettings)
         {
-            //external authentication
-            ExternalAuthorizerHelper.RemoveParameters();
-
             if (_workContext.OriginalCustomerIfImpersonated != null)
             {
                 //logout impersonated customer
@@ -247,7 +239,7 @@ namespace Grand.Web.Controllers
             _authenticationService.SignOut();
 
             //EU Cookie
-            if (EngineContext.Current.Resolve<StoreInformationSettings>().DisplayEuCookieLawWarning)
+            if (storeInformationSettings.DisplayEuCookieLawWarning)
             {
                 //the cookie law message should not pop up immediately after logout.
                 //otherwise, the user will have to click it again...
@@ -264,7 +256,6 @@ namespace Grand.Web.Controllers
 
         #region Password recovery
 
-        [HttpsRequirement(SslRequirement.Yes)]
         //available even when navigation is not allowed
         [CheckAccessPublicStore(true)]
         public virtual IActionResult PasswordRecovery()
@@ -300,8 +291,6 @@ namespace Grand.Web.Controllers
             return View(model);
         }
 
-
-        [HttpsRequirement(SslRequirement.Yes)]
         //available even when navigation is not allowed
         [CheckAccessPublicStore(true)]
         public virtual IActionResult PasswordRecoveryConfirm(string token, string email)
@@ -368,7 +357,6 @@ namespace Grand.Web.Controllers
 
         #region Register
 
-        [HttpsRequirement(SslRequirement.Yes)]
         //available even when navigation is not allowed
         [CheckAccessPublicStore(true)]
         public virtual IActionResult Register()
@@ -542,9 +530,6 @@ namespace Grand.Web.Controllers
                     if (isApproved)
                         _authenticationService.SignIn(customer, true);
 
-                    //associated with external account (if possible)
-                    _customerWebService.TryAssociateAccountWithExternalAccount(customer);
-                    
                     //insert default address (if possible)
                     var defaultAddress = new Address
                     {
@@ -552,6 +537,7 @@ namespace Grand.Web.Controllers
                         LastName = customer.GetAttribute<string>(SystemCustomerAttributeNames.LastName),
                         Email = customer.Email,
                         Company = customer.GetAttribute<string>(SystemCustomerAttributeNames.Company),
+                        VatNumber = customer.GetAttribute<string>(SystemCustomerAttributeNames.VatNumber),
                         CountryId = !String.IsNullOrEmpty(customer.GetAttribute<string>(SystemCustomerAttributeNames.CountryId)) ? 
                             customer.GetAttribute<string>(SystemCustomerAttributeNames.CountryId) : "",
                         StateProvinceId = !String.IsNullOrEmpty(customer.GetAttribute<string>(SystemCustomerAttributeNames.StateProvinceId))?
@@ -612,7 +598,10 @@ namespace Grand.Web.Controllers
 
                                 var redirectUrl = Url.RouteUrl("RegisterResult", new { resultId = (int)UserRegistrationType.Standard });
                                 if (!String.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
-                                    redirectUrl = _webHelper.ModifyQueryString(redirectUrl, "returnurl=" + WebUtility.UrlEncode(returnUrl), null);
+                                {
+                                    var webHelper = EngineContext.Current.Resolve<IWebHelper>();
+                                    redirectUrl = webHelper.ModifyQueryString(redirectUrl, "returnurl=" + WebUtility.UrlEncode(returnUrl), null);
+                                }
                                 return Redirect(redirectUrl);
                             }
                         default:
@@ -691,7 +680,6 @@ namespace Grand.Web.Controllers
             return Json(new { Available = usernameAvailable, Text = statusText });
         }
         
-        [HttpsRequirement(SslRequirement.Yes)]
         //available even when navigation is not allowed
         [CheckAccessPublicStore(true)]
         public virtual IActionResult AccountActivation(string token, string email)
@@ -724,7 +712,6 @@ namespace Grand.Web.Controllers
 
         #region My account / Info
 
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult Info()
         {
             if (!_workContext.CurrentCustomer.IsRegistered())
@@ -860,9 +847,7 @@ namespace Grand.Web.Controllers
                         }
                         //save newsletter value
                         var newsletter = _newsLetterSubscriptionService.GetNewsLetterSubscriptionByEmailAndStoreId(customer.Email, _storeContext.CurrentStore.Id);
-                        if (newsletter == null)
-                            newsletter = _newsLetterSubscriptionService.GetNewsLetterSubscriptionByCustomerId(customer.Id);
-
+                        
                         if (newsletter != null)
                         {
                             newsletter.Categories.Clear();
@@ -919,7 +904,6 @@ namespace Grand.Web.Controllers
 
         [HttpPost]
         [PublicAntiForgery]
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult RemoveExternalAssociation(string id)
         {
 
@@ -948,15 +932,17 @@ namespace Grand.Web.Controllers
         }
 
 
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult Export()
         {
             if (!_workContext.CurrentCustomer.IsRegistered())
                 return Challenge();
 
+            if(!_customerSettings.AllowUsersToExportData)
+                return Challenge();
+
             var customer = _workContext.CurrentCustomer;
             var exportManager = EngineContext.Current.Resolve<Grand.Services.ExportImport.IExportManager>();
-            byte[] bytes = exportManager.ExportCustomerToXlsx(customer);
+            byte[] bytes = exportManager.ExportCustomerToXlsx(customer, _storeContext.CurrentStore.Id);
             return File(bytes, "text/xls", "PersonalInfo.xlsx");
 
         }
@@ -964,7 +950,6 @@ namespace Grand.Web.Controllers
 
         #region My account / Addresses
 
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult Addresses()
         {
             if (!_workContext.CurrentCustomer.IsRegistered())
@@ -976,7 +961,6 @@ namespace Grand.Web.Controllers
 
         [HttpPost]
         [PublicAntiForgery]
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult AddressDelete(string addressId)
         {
             if (!_workContext.CurrentCustomer.IsRegistered())
@@ -1000,7 +984,6 @@ namespace Grand.Web.Controllers
 
         }
 
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult AddressAdd()
         {
             if (!_workContext.CurrentCustomer.IsRegistered())
@@ -1054,7 +1037,6 @@ namespace Grand.Web.Controllers
             return View(model);
         }
 
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult AddressEdit(string addressId)
         {
             if (!_workContext.CurrentCustomer.IsRegistered())
@@ -1125,7 +1107,6 @@ namespace Grand.Web.Controllers
 
         #region My account / Downloadable products
 
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult DownloadableProducts()
         {
             if (!_workContext.CurrentCustomer.IsRegistered())
@@ -1151,7 +1132,6 @@ namespace Grand.Web.Controllers
 
         #region My account / Change password
 
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult ChangePassword()
         {
             if (!_workContext.CurrentCustomer.IsRegistered())
@@ -1201,7 +1181,6 @@ namespace Grand.Web.Controllers
 
         #region My account / Delete account
 
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult DeleteAccount()
         {
             if (!_workContext.CurrentCustomer.IsRegistered())
@@ -1219,13 +1198,13 @@ namespace Grand.Web.Controllers
         [PublicAntiForgery]
         public virtual IActionResult DeleteAccount(DeleteAccountModel model)
         {
-            if (!_workContext.CurrentCustomer.IsRegistered())
+            var customer = _workContext.CurrentCustomer;
+            if (!customer.IsRegistered())
                 return Challenge();
 
             if (!_customerSettings.AllowUsersToDeleteAccount)
                 return RedirectToRoute("CustomerInfo");
 
-            var customer = _workContext.CurrentCustomer;
             if (ModelState.IsValid)
             {
                 var loginResult = _customerRegistrationService.ValidateCustomer(_customerSettings.UsernamesEnabled ? customer.Username : customer.Email, model.Password);
@@ -1237,11 +1216,8 @@ namespace Grand.Web.Controllers
                             //activity log
                             _customerActivityService.InsertActivity("PublicStore.DeleteAccount", "", _localizationService.GetResource("ActivityLog.DeleteAccount"));
 
-                            //send notification to customer
-                            _workflowMessageService.SendCustomerDeleteStoreOwnerNotification(customer, _localizationSettings.DefaultAdminLanguageId);
-
-                            //delete account
-                            _customerService.DeleteCustomer(customer);
+                            //delete account 
+                            _customerWebService.DeleteAccount(customer);
 
                             //standard logout 
                             _authenticationService.SignOut();
@@ -1278,7 +1254,6 @@ namespace Grand.Web.Controllers
 
         #region My account / Avatar
 
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult Avatar()
         {
             if (!_workContext.CurrentCustomer.IsRegistered())
@@ -1379,7 +1354,6 @@ namespace Grand.Web.Controllers
 
         #region My account / Auctions
 
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult Auctions()
         {
             if (!_workContext.CurrentCustomer.IsRegistered())

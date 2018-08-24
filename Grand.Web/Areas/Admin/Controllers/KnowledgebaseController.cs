@@ -580,7 +580,7 @@ namespace Grand.Web.Areas.Admin.Controllers
                 .ToList();
 
                 SuccessNotification(_localizationService.GetResource("Admin.ContentManagement.Knowledgebase.KnowledgebaseArticle.Added"));
-                return continueEditing ? RedirectToAction("EditArticle", new { knowledgebaseArticle.Id }) : RedirectToAction("List");
+                return continueEditing ? RedirectToAction("EditArticle", new { knowledgebaseArticle.Id }) : RedirectToAction("EditCategory", new { id = model.ParentCategoryId });
             }
 
             //If we got this far, something failed, redisplay form
@@ -669,7 +669,7 @@ namespace Grand.Web.Areas.Admin.Controllers
                 .ToList();
 
                 SuccessNotification(_localizationService.GetResource("Admin.ContentManagement.Knowledgebase.KnowledgebaseArticle.Updated"));
-                return continueEditing ? RedirectToAction("EditArticle", new { id = knowledgebaseArticle.Id }) : RedirectToAction("List");
+                return continueEditing ? RedirectToAction("EditArticle", new { knowledgebaseArticle.Id }) : RedirectToAction("EditCategory", new { id = model.ParentCategoryId });
             }
 
             //If we got this far, something failed, redisplay form
@@ -713,7 +713,7 @@ namespace Grand.Web.Areas.Admin.Controllers
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageKnowledgebase))
                 return AccessDeniedView();
 
-            var articles = _knowledgebaseService.GetKnowledgebaseArticlesByName(model.SearchArticleName);
+            var articles = _knowledgebaseService.GetKnowledgebaseArticlesByName(model.SearchArticleName, command.Page - 1, command.PageSize);
             var gridModel = new DataSourceResult();
             gridModel.Data = articles.Select(x => x.ToModel());
             gridModel.Total = articles.TotalCount;

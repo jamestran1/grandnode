@@ -16,6 +16,13 @@ namespace Grand.Services.Knowledgebase
         KnowledgebaseCategory GetKnowledgebaseCategory(string id);
 
         /// <summary>
+        /// Gets public knowledgebase category
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns>knowledgebase category</returns>
+        KnowledgebaseCategory GetPublicKnowledgebaseCategory(string id);
+
+        /// <summary>
         /// Gets knowledgebase categories
         /// </summary>
         /// <returns>List of knowledgebase categories</returns>
@@ -53,6 +60,13 @@ namespace Grand.Services.Knowledgebase
         KnowledgebaseArticle GetKnowledgebaseArticle(string id);
 
         /// <summary>
+        /// Gets public knowledgebase article
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns>knowledgebase article</returns>
+        KnowledgebaseArticle GetPublicKnowledgebaseArticle(string id);
+
+        /// <summary>
         /// Gets knowledgebase articles
         /// </summary>
         /// <returns>List of knowledgebase articles</returns>
@@ -81,6 +95,12 @@ namespace Grand.Services.Knowledgebase
         /// </summary>
         /// <returns>List of public knowledgebase articles</returns>
         List<KnowledgebaseArticle> GetPublicKnowledgebaseArticlesByKeyword(string keyword);
+
+        /// <summary>
+        /// Gets public(published etc) knowledgebase categories for keyword
+        /// </summary>
+        /// <returns>List of public knowledgebase categories</returns>
+        List<KnowledgebaseCategory> GetPublicKnowledgebaseCategoriesByKeyword(string keyword);
 
         /// <summary>
         /// Inserts knowledgebase article
@@ -120,11 +140,5 @@ namespace Grand.Services.Knowledgebase
         /// <param name="name"></param>
         /// <returns>IPagedList<KnowledgebaseArticle></returns>
         IPagedList<KnowledgebaseArticle> GetRelatedKnowledgebaseArticles(string articleId, int pageIndex = 0, int pageSize = int.MaxValue);
-
-        /// <summary>
-        /// Gets knowledgebase article if it is published etc
-        /// </summary>
-        /// <returns>knowledgebase article</returns>
-        KnowledgebaseArticle GetPublicKnowledgebaseArticle(string id);
     }
 }

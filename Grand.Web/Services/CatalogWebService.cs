@@ -292,6 +292,11 @@ namespace Grand.Web.Services
 
         #region Category
 
+        public virtual Category GetCategoryById(string categoryId)
+        {
+            return _categoryService.GetCategoryById(categoryId);
+        }
+
         public virtual List<string> GetChildCategoryIds(string parentCategoryId)
         {
             string cacheKey = string.Format(ModelCacheEventConsumer.CATEGORY_CHILD_IDENTIFIERS_MODEL_KEY,
@@ -338,7 +343,9 @@ namespace Grand.Web.Services
                     Id = category.Id,
                     Name = category.GetLocalized(x => x.Name, langid),
                     SeName = category.GetSeName(langid),
-                    IncludeInTopMenu = category.IncludeInTopMenu
+                    IncludeInTopMenu = category.IncludeInTopMenu,
+                    Flag = category.Flag,
+                    FlagStyle = category.FlagStyle
                 };
 
                 //product number for each category
@@ -475,7 +482,7 @@ namespace Grand.Web.Services
                 storeId,
                 languageId,
                 connectionSecured);
-            model.SubCategories = _cacheManager.Get(subCategoriesCacheKey, () => _categoryService.GetAllCategoriesByParentCategoryId(category.Id)
+            model.SubCategories = _cacheManager.Get(subCategoriesCacheKey, () => _categoryService.GetAllCategoriesByParentCategoryId(category.Id).Where(x=>!x.HideOnCatalog)
                 .Select(x =>
                 {
                     var subCatModel = new CategoryModel.SubCategoryModel
@@ -483,7 +490,9 @@ namespace Grand.Web.Services
                         Id = x.Id,
                         Name = x.GetLocalized(y => y.Name, languageId),
                         SeName = x.GetSeName(languageId),
-                        Description = x.GetLocalized(y => y.Description, languageId)
+                        Description = x.GetLocalized(y => y.Description, languageId),
+                        Flag = x.Flag,
+                        FlagStyle = x.FlagStyle
                     };
                     //prepare picture model
                     int pictureSize = _mediaSettings.CategoryThumbPictureSize;
@@ -669,6 +678,11 @@ namespace Grand.Web.Services
         #endregion
 
         #region Manufacturer
+
+        public Manufacturer GetManufacturerById(string manufacturerId)
+        {
+            return _manufacturerService.GetManufacturerById(manufacturerId);
+        }
 
         public virtual string PrepareManufacturerTemplateViewPath(string templateId)
         {

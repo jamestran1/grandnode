@@ -223,7 +223,6 @@ namespace Grand.Services.Orders
             public decimal PaymentAdditionalFeeInclTax { get; set; }
             public decimal PaymentAdditionalFeeExclTax { get; set; }
             public decimal OrderTaxTotal { get; set; }
-            public string VatNumber { get; set; }
             public string TaxRates { get; set; }
             public decimal OrderDiscountAmount { get; set; }
             public int RedeemedRewardPoints { get; set; }
@@ -578,11 +577,6 @@ namespace Grand.Services.Orders
                 SortedDictionary<decimal, decimal> taxRatesDictionary;
                 details.OrderTaxTotal = _orderTotalCalculationService.GetTaxTotal(details.Cart, out taxRatesDictionary);
 
-                //VAT number
-                var customerVatStatus = (VatNumberStatus)details.Customer.GetAttribute<int>(SystemCustomerAttributeNames.VatNumberStatusId);
-                if (_taxSettings.EuVatEnabled && customerVatStatus == VatNumberStatus.Valid)
-                    details.VatNumber = details.Customer.GetAttribute<string>(SystemCustomerAttributeNames.VatNumber);
-
                 //tax rates
                 foreach (var kvp in taxRatesDictionary)
                 {
@@ -595,8 +589,6 @@ namespace Grand.Services.Orders
             {
                 details.OrderTaxTotal = details.InitialOrder.OrderTax;
                 details.TaxRates = details.InitialOrder.TaxRates;
-                //VAT number
-                details.VatNumber = details.InitialOrder.VatNumber;
             }
 
             //recurring or standard shopping cart?
@@ -1236,7 +1228,12 @@ namespace Grand.Services.Orders
                         PickupPoint = details.PickupPoint,
                         ShippingRateComputationMethodSystemName = details.ShippingRateComputationMethodSystemName,
                         CustomValuesXml = processPaymentRequest.SerializeCustomValues(),
-                        VatNumber = details.VatNumber,
+                        VatNumber = details.Customer.GetAttribute<string>(SystemCustomerAttributeNames.VatNumber),
+                        VatNumberStatusId = details.Customer.GetAttribute<int>(SystemCustomerAttributeNames.VatNumberStatusId),
+                        CompanyName = details.Customer.GetAttribute<string>(SystemCustomerAttributeNames.Company),
+                        FirstName = details.Customer.GetAttribute<string>(SystemCustomerAttributeNames.FirstName),
+                        LastName = details.Customer.GetAttribute<string>(SystemCustomerAttributeNames.LastName),
+                        CustomerEmail = details.Customer.Email,
                         UrlReferrer = details.Customer.GetAttribute<string>(SystemCustomerAttributeNames.LastUrlReferrer),
                         ShippingOptionAttributeDescription = details.Customer.GetAttribute<string>(SystemCustomerAttributeNames.ShippingOptionAttributeDescription, processPaymentRequest.StoreId),
                         ShippingOptionAttributeXml = details.Customer.GetAttribute<string>(SystemCustomerAttributeNames.ShippingOptionAttributeXml, processPaymentRequest.StoreId),
@@ -1335,11 +1332,7 @@ namespace Grand.Services.Orders
                                 }
                                 if (!string.IsNullOrEmpty(sc.Parameter))
                                 {
-                                    reservationInfo += "<br>" + _localizationService.GetResource("Products.AdditionalOption") + ": " + sc.Parameter;
-                                }
-                                if (!string.IsNullOrEmpty(sc.Parameter))
-                                {
-                                    reservationInfo = sc.Parameter;
+                                    reservationInfo += "<br>" + string.Format(_localizationService.GetResource("ShoppingCart.Reservation.Option"), sc.Parameter);
                                 }
                                 if (!string.IsNullOrEmpty(sc.Duration))
                                 {
@@ -2141,7 +2134,7 @@ namespace Grand.Services.Orders
             //add a note
             _orderService.InsertOrderNote(new OrderNote
             {
-                Note = string.Format("Shipment# {0} has been sent", shipment.Id),
+                Note = $"Shipment #{shipment.ShipmentNumber} has been sent",
                 DisplayToCustomer = false,
                 CreatedOnUtc = DateTime.UtcNow,
                 OrderId = order.Id,
@@ -2200,7 +2193,7 @@ namespace Grand.Services.Orders
             //add a note
             _orderService.InsertOrderNote(new OrderNote
             {
-                Note = string.Format("Shipment# {0} has been delivered", shipment.Id),
+                Note = $"Shipment #{shipment.ShipmentNumber} has been delivered",
                 DisplayToCustomer = false,
                 CreatedOnUtc = DateTime.UtcNow,
                 OrderId = order.Id,

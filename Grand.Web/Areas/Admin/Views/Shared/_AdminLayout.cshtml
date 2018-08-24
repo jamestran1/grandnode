@@ -5,17 +5,12 @@
 @inject CustomerSettings customerSettings
 @inject LocalizationSettings localizationSettings
 @inject AdminAreaSettings adminAreaSettings
-@using System.Globalization
+
 @using System.Text.Encodings.Web
-@using Microsoft.AspNetCore.Http
 @using Grand.Core.Domain.Customers
 @using Grand.Framework.UI;
 @using Grand.Core;
-@using Grand.Core.Domain
 @using Grand.Core.Domain.Localization
-@using Grand.Services.Common
-@using Grand.Services.Customers
-@using Grand.Services.Helpers
 @using Grand.Services.Security;
 @using Grand.Core.Domain.Common;
 @using Microsoft.AspNetCore.Routing;
@@ -23,7 +18,7 @@
     var currentCustomer = this.WorkContext.CurrentCustomer;
     var usernamesEnabled = customerSettings.UsernamesEnabled;
     var currentVersion = GrandVersion.CurrentVersion;
-    var kendoVersion = "2016.2.504";
+    var kendoVersion = "2018.1.503";
     var supportRtl = workContext.WorkingLanguage.Rtl &&
         !localizationSettings.IgnoreRtlPropertyForAdminArea;
 
@@ -50,7 +45,7 @@
     else
     {
         Html.AppendCssFileParts("~/Administration/global/css/plugins.min.css", excludeFromBundle: true);
-        Html.AppendCssFileParts($"~/Administration/layout/themes/{adminAreaSettings.AdminLayout.ToLowerInvariant()}.min.css", excludeFromBundle: true);
+        Html.AppendCssFileParts($"~/Administration/layout/themes/{(adminAreaSettings.AdminLayout != null ? adminAreaSettings.AdminLayout.ToLowerInvariant() : "Default")}.min.css", excludeFromBundle: true);
         Html.AppendCssFileParts("~/Administration/layout/custom.min.css", excludeFromBundle: true);
         Html.AppendCssFileParts("~/Administration/layout/layout.min.css", excludeFromBundle: true);
         Html.AppendCssFileParts("~/Administration/global/css/components.min.css", excludeFromBundle: true);
@@ -62,8 +57,10 @@
     Html.AppendCssFileParts("~/Administration/font-awesome/css/font-awesome.min.css", excludeFromBundle: true);
 
     //js
-    Html.AppendScriptParts(string.Format("~/Scripts/kendo/{0}/cultures/kendo.culture.{1}.min.js", kendoVersion, System.Globalization.CultureInfo.CurrentCulture.Name), excludeFromBundle: true);
-    Html.AppendScriptParts(string.Format("~/Scripts/kendo/{0}/kendo.all.min.js", kendoVersion), excludeFromBundle: true);
+    Html.AppendScriptParts(string.Format("~/Scripts/kendo/{0}/cultures/kendo.culture.{1}.min.js", kendoVersion, "en-US"), excludeFromBundle: true);
+    Html.AppendScriptParts(string.Format("~/Scripts/kendo/{0}/cultures/kendo.culture.{1}.min.js", kendoVersion, @System.Globalization.CultureInfo.CurrentCulture.Name), excludeFromBundle: true);
+    Html.AppendScriptParts(string.Format("~/Scripts/kendo/{0}/kendo.grid.js", kendoVersion), excludeFromBundle: true);
+    Html.AppendScriptParts(string.Format("~/Scripts/kendo/{0}/kendo.ui.core.js", kendoVersion), excludeFromBundle: true);
     Html.AppendScriptParts("~/Scripts/admin.common.js", excludeFromBundle: true);
     Html.AppendScriptParts("~/Scripts/jquery-ui-1.10.3.custom.min.js", excludeFromBundle: true);
     Html.AppendScriptParts("~/Scripts/jquery.validate.unobtrusive.min.js", excludeFromBundle: true);
@@ -105,11 +102,6 @@
     @Html.GrandHeadCustom()
     @Html.GrandCssFiles(this.Url, ResourceLocation.Head, false)
     @Html.GrandScripts(this.Url, ResourceLocation.Head, false)
-    <script type="text/javascript">
-        $(document).ready(function () {
-            kendo.culture("@System.Globalization.CultureInfo.CurrentCulture.Name");
-        });
-    </script>
 </head>
 <body class="page-header-fixed page-sidebar-closed-hide-logo page-content-white">
     @await Component.InvokeAsync("AdminWidget", new { widgetZone = "admin_header_before" })
@@ -171,7 +163,7 @@
                             <ul class="dropdown-menu dropdown-menu-default">
                                 <li>
                                     <a href="@Url.Action("Edit", "Customer", new { id = currentCustomer.Id, area = "Admin" })">
-                                        <i class="icon-user"></i> My Profile
+                                        <i class="icon-user"></i> @T("Admin.Header.Profile")
                                     </a>
                                 </li>
                                 <li>
@@ -200,7 +192,7 @@
                                 </li>
                                 <li>
                                     <a href="javascript:;">
-                                        <i class="fa fa-dot-circle-o"></i> grandnode @currentVersion
+                                        <i class="fa fa-dot-circle-o"></i> grandnode @currentVersion.01
                                     </a>
                                 </li>
                             </ul>
@@ -252,8 +244,8 @@
             </div>
         </div>
     </div>
-    @Html.GrandCssFiles(this.Url, ResourceLocation.Foot)
-    @Html.GrandScripts(this.Url, ResourceLocation.Foot)
+    @Html.GrandCssFiles(this.Url, ResourceLocation.Footer)
+    @Html.GrandScripts(this.Url, ResourceLocation.Footer)
     <div class="page-footer">
         <div class="page-footer-inner">
             <a href="https://grandnode.com/" target="_blank">2018 © Powered by GrandNode.</a>
@@ -262,10 +254,16 @@
             <i class="icon-arrow-up"></i>
         </div>
     </div>
-    <script type="text/javascript">
+    <script>
             $(document).ready(function () {
                 $("#restart-application").click(function (e) {
+                    event.preventDefault();
                     showThrobber('@Html.Raw(JavaScriptEncoder.Default.Encode(T("Admin.Header.RestartApplication.Progress").Text))');
+                    $("html, body").animate({ scrollTop: 0 }, 400);
+                    $.get($(this).attr("href"), function (data) { });
+                    setTimeout(function () {
+                        location.reload();
+                    }, 10000);
                 });
             });
     </script>

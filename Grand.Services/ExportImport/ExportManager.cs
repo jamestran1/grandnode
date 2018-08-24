@@ -28,6 +28,7 @@ using Grand.Services.Orders;
 using Grand.Services.Customers;
 using Grand.Core.Domain.Logging;
 using Grand.Services.Logging;
+using Grand.Core.Domain.Common;
 
 namespace Grand.Services.ExportImport
 {
@@ -98,6 +99,8 @@ namespace Grand.Services.ExportImport
                     xmlWriter.WriteElementString("ShowOnHomePage", null, category.ShowOnHomePage.ToString());
                     xmlWriter.WriteElementString("IncludeInTopMenu", null, category.IncludeInTopMenu.ToString());
                     xmlWriter.WriteElementString("Published", null, category.Published.ToString());
+                    xmlWriter.WriteElementString("Flag", null, category.Flag);
+                    xmlWriter.WriteElementString("FlagStyle", null, category.FlagStyle);
 
                     xmlWriter.WriteElementString("DisplayOrder", null, category.DisplayOrder.ToString());
                     xmlWriter.WriteElementString("CreatedOnUtc", null, category.CreatedOnUtc.ToString());
@@ -283,6 +286,8 @@ namespace Grand.Services.ExportImport
                 new PropertyByName<Category>("ShowOnHomePage", p => p.ShowOnHomePage),
                 new PropertyByName<Category>("IncludeInTopMenu", p => p.IncludeInTopMenu),
                 new PropertyByName<Category>("Published", p => p.Published),
+                new PropertyByName<Category>("Flag", p => p.Flag),
+                new PropertyByName<Category>("FlagStyle", p => p.FlagStyle),
                 new PropertyByName<Category>("DisplayOrder", p => p.DisplayOrder)
             };
             return ExportToXlsx(properties, categories);
@@ -316,6 +321,7 @@ namespace Grand.Services.ExportImport
                 xmlWriter.WriteElementString("Name", null, product.Name);
                 xmlWriter.WriteElementString("ShortDescription", null, product.ShortDescription);
                 xmlWriter.WriteElementString("FullDescription", null, product.FullDescription);
+                xmlWriter.WriteElementString("Flag", null, product.Flag);
                 xmlWriter.WriteElementString("AdminComment", null, product.AdminComment);
                 xmlWriter.WriteElementString("VendorId", null, product.VendorId);
                 xmlWriter.WriteElementString("ProductTemplateId", null, product.ProductTemplateId);
@@ -584,6 +590,7 @@ namespace Grand.Services.ExportImport
                 new PropertyByName<Product>("Name", p => p.Name),
                 new PropertyByName<Product>("ShortDescription", p => p.ShortDescription),
                 new PropertyByName<Product>("FullDescription", p => p.FullDescription),
+                new PropertyByName<Product>("Flag", p => p.Flag),
                 new PropertyByName<Product>("VendorId", p => p.VendorId),
                 new PropertyByName<Product>("ProductTemplateId", p => p.ProductTemplateId),
                 new PropertyByName<Product>("ShowOnHomePage", p => p.ShowOnHomePage),
@@ -839,7 +846,7 @@ namespace Grand.Services.ExportImport
         /// Export customer - personal info to XLSX
         /// </summary>
         /// <param name="customer">Customer</param>
-        public virtual byte[] ExportCustomerToXlsx(Customer customer)
+        public virtual byte[] ExportCustomerToXlsx(Customer customer, string stroreId)
         {
             using (var stream = new MemoryStream())
             {
@@ -851,6 +858,18 @@ namespace Grand.Services.ExportImport
                     managerCustomer.WriteCaption(worksheetCustomer, SetCaptionStyle);
                     managerCustomer.WriteToXlsx(worksheetCustomer);
 
+                    //address
+                    var worksheetAddress = xlPackage.Workbook.Worksheets.Add("Address");
+                    var managerAddress = new PropertyManager<Address>(PropertyByAddress());
+                    managerAddress.WriteCaption(worksheetAddress, SetCaptionStyle);
+
+                    var row = 2;
+                    foreach (var item in customer.Addresses)
+                    {
+                        managerAddress.CurrentObject = item;
+                        managerAddress.WriteToXlsx(worksheetAddress, row++);
+                    }
+
                     //orders
                     var orderService = EngineContext.Current.Resolve<IOrderService>();
                     var customerService = EngineContext.Current.Resolve<ICustomerService>();
@@ -860,7 +879,7 @@ namespace Grand.Services.ExportImport
                     var managerOrder = new PropertyManager<Order>(PropertyByOrder());
                     managerOrder.WriteCaption(worksheetOrder, SetCaptionStyle);
 
-                    var row = 2;
+                    row = 2;
                     foreach (var items in orders)
                     {
                         managerOrder.CurrentObject = items;
@@ -910,6 +929,31 @@ namespace Grand.Services.ExportImport
                     {
                         managerEmails.CurrentObject = items;
                         managerEmails.WriteToXlsx(worksheetEmails, row++);
+                    }
+
+                    //Newsletter subscribe - history of change
+                    var newsletterService = EngineContext.Current.Resolve<INewsLetterSubscriptionService>();
+                    var newsletter = newsletterService.GetNewsLetterSubscriptionByEmailAndStoreId(customer.Email, stroreId);
+                    if (newsletter != null)
+                    {
+                        var worksheetNewsletter = xlPackage.Workbook.Worksheets.Add("Newsletter subscribe - history of change");
+                        var managerNewsletter = new PropertyManager<NewsLetterSubscription>(PropertyByNewsLetterSubscription());
+                        managerNewsletter.WriteCaption(worksheetNewsletter, SetCaptionStyle);
+                        var newsletterhistory = newsletter.GetHistoryObject();
+                        row = 2;
+                        foreach (var item in newsletterhistory)
+                        {
+                            var _tmp = (NewsLetterSubscription)item.Object;
+
+                            var newslettertml = new NewsLetterSubscription()
+                            {
+                                Active = _tmp.Active,
+                                CreatedOnUtc = item.CreatedOnUtc
+                            };
+                            _tmp.Categories.ToList().ForEach(x => newslettertml.Categories.Add(x));
+                            managerNewsletter.CurrentObject = newslettertml;
+                            managerNewsletter.WriteToXlsx(worksheetNewsletter, row++);
+                        }
                     }
 
                     xlPackage.Save();
@@ -983,7 +1027,7 @@ namespace Grand.Services.ExportImport
                     xmlWriter.WriteElementString(string.Format("Newsletter-in-store-{0}", store.Id), null, subscribedToNewsletters.ToString());
                 }
 
-                xmlWriter.WriteElementString("AvatarPictureId", null, customer.GetAttribute<int>(SystemCustomerAttributeNames.AvatarPictureId).ToString());
+                xmlWriter.WriteElementString("AvatarPictureId", null, customer.GetAttribute<string>(SystemCustomerAttributeNames.AvatarPictureId)?.ToString());
                 xmlWriter.WriteElementString("ForumPostCount", null, customer.GetAttribute<int>(SystemCustomerAttributeNames.ForumPostCount).ToString());
                 xmlWriter.WriteElementString("Signature", null, customer.GetAttribute<string>(SystemCustomerAttributeNames.Signature));
 
@@ -1186,6 +1230,7 @@ namespace Grand.Services.ExportImport
                     new PropertyByName<Order>("BillingLastName", p=>p.BillingAddress.Return(billingAddress=>billingAddress.LastName, "")),
                     new PropertyByName<Order>("BillingEmail", p=>p.BillingAddress.Return(billingAddress=>billingAddress.Email, "")),
                     new PropertyByName<Order>("BillingCompany", p=>p.BillingAddress.Return(billingAddress=>billingAddress.Company, "")),
+                    new PropertyByName<Order>("BillingVatNumber", p=>p.BillingAddress.Return(billingAddress=>billingAddress.VatNumber, "")),
                     new PropertyByName<Order>("BillingCountry",p=>p.BillingAddress.Return(billingAddress=>EngineContext.Current.Resolve<ICountryService>().GetCountryById(billingAddress.CountryId), null).Return(country=>country.Name,"")),
                     new PropertyByName<Order>("BillingStateProvince",p=>p.BillingAddress.Return(billingAddress=>EngineContext.Current.Resolve<IStateProvinceService>().GetStateProvinceById(billingAddress.StateProvinceId), null).Return(stateProvince=>stateProvince.Name,"")),
                     new PropertyByName<Order>("BillingCity", p=>p.BillingAddress.Return(billingAddress=>billingAddress.City,"")),
@@ -1198,6 +1243,7 @@ namespace Grand.Services.ExportImport
                     new PropertyByName<Order>("ShippingLastName", p=>p.ShippingAddress.Return(shippingAddress=>shippingAddress.LastName, "")),
                     new PropertyByName<Order>("ShippingEmail", p=>p.ShippingAddress.Return(shippingAddress=>shippingAddress.Email, "")),
                     new PropertyByName<Order>("ShippingCompany", p=>p.ShippingAddress.Return(shippingAddress=>shippingAddress.Company, "")),
+                    new PropertyByName<Order>("ShippingVatNumber", p=>p.ShippingAddress.Return(shippingAddress=>shippingAddress.VatNumber, "")),
                     new PropertyByName<Order>("ShippingCountry", p=>p.ShippingAddress.Return(shippingAddress=>EngineContext.Current.Resolve<ICountryService>().GetCountryById(shippingAddress.CountryId), null).Return(country=>country.Name,"")),
                     new PropertyByName<Order>("ShippingStateProvince", p=>p.ShippingAddress.Return(shippingAddress=>EngineContext.Current.Resolve<IStateProvinceService>().GetStateProvinceById(shippingAddress.StateProvinceId), null).Return(stateProvince=>stateProvince.Name,"")),
                     new PropertyByName<Order>("ShippingCity", p=>p.ShippingAddress.Return(shippingAddress=>shippingAddress.City, "")),
@@ -1206,6 +1252,24 @@ namespace Grand.Services.ExportImport
                     new PropertyByName<Order>("ShippingZipPostalCode", p=>p.ShippingAddress.Return(shippingAddress=>shippingAddress.ZipPostalCode, "")),
                     new PropertyByName<Order>("ShippingPhoneNumber",p=>p.ShippingAddress.Return(shippingAddress=>shippingAddress.PhoneNumber, "")),
                     new PropertyByName<Order>("ShippingFaxNumber", p=>p.ShippingAddress.Return(shippingAddress=>shippingAddress.FaxNumber, ""))
+            };
+            return properties;
+        }
+
+        private PropertyByName<Address>[] PropertyByAddress()
+        {
+            var properties = new[]
+            {
+                    new PropertyByName<Address>("Email", p=>p.Email),
+                    new PropertyByName<Address>("FirstName", p=>p.FirstName),
+                    new PropertyByName<Address>("LastName", p=>p.LastName),
+                    new PropertyByName<Address>("PhoneNumber", p=>p.PhoneNumber),
+                    new PropertyByName<Address>("FaxNumber", p=>p.FaxNumber),
+                    new PropertyByName<Address>("Address1", p=>p.Address1),
+                    new PropertyByName<Address>("Address2", p=>p.Address2),
+                    new PropertyByName<Address>("City", p=>p.City),
+                    new PropertyByName<Address>("Country", p=> !string.IsNullOrEmpty(p.CountryId) ? EngineContext.Current.Resolve<ICountryService>().GetCountryById(p.CountryId)?.Name : ""),
+                    new PropertyByName<Address>("StateProvince", p=> !string.IsNullOrEmpty(p.StateProvinceId) ? EngineContext.Current.Resolve<IStateProvinceService>().GetStateProvinceById(p.StateProvinceId)?.Name : ""),
             };
             return properties;
         }
@@ -1245,7 +1309,7 @@ namespace Grand.Services.ExportImport
                 new PropertyByName<Customer>("VatNumber", p => p.GetAttribute<string>(SystemCustomerAttributeNames.VatNumber)),
                 new PropertyByName<Customer>("VatNumberStatusId", p => p.GetAttribute<int>(SystemCustomerAttributeNames.VatNumberStatusId)),
                 new PropertyByName<Customer>("TimeZoneId", p => p.GetAttribute<string>(SystemCustomerAttributeNames.TimeZoneId)),
-                new PropertyByName<Customer>("AvatarPictureId", p => p.GetAttribute<int>(SystemCustomerAttributeNames.AvatarPictureId)),
+                new PropertyByName<Customer>("AvatarPictureId", p => p.GetAttribute<string>(SystemCustomerAttributeNames.AvatarPictureId)),
                 new PropertyByName<Customer>("ForumPostCount", p => p.GetAttribute<int>(SystemCustomerAttributeNames.ForumPostCount)),
                 new PropertyByName<Customer>("Signature", p => p.GetAttribute<string>(SystemCustomerAttributeNames.Signature)),
             };
@@ -1272,6 +1336,7 @@ namespace Grand.Services.ExportImport
                 new PropertyByName<ContactUs>("FullName", p => p.FullName),
                 new PropertyByName<ContactUs>("Subject", p => p.Subject),
                 new PropertyByName<ContactUs>("Enquiry", p => p.Enquiry),
+                new PropertyByName<ContactUs>("ContactAttributeDescription", p => p.ContactAttributeDescription),
             };
             return properties;
         }
@@ -1285,6 +1350,38 @@ namespace Grand.Services.ExportImport
                 new PropertyByName<QueuedEmail>("FromName", p => p.FromName),
                 new PropertyByName<QueuedEmail>("Subject", p => p.Subject),
                 new PropertyByName<QueuedEmail>("Body", p => p.Body),
+            };
+            return properties;
+        }
+
+        private PropertyByName<NewsLetterSubscription>[] PropertyByNewsLetterSubscription()
+        {
+            var newsletterCategoryService = EngineContext.Current.Resolve<INewsletterCategoryService>();
+
+            string GetCategoryNames(IList<string> categoryNames, string separator = ",")
+            {
+                var sb = new StringBuilder();
+                for (int i = 0; i < categoryNames.Count; i++)
+                {
+                    var category = newsletterCategoryService.GetNewsletterCategoryById(categoryNames[i]);
+                    if (category != null)
+                    {
+                        sb.Append(category.Name);
+                        if (i != categoryNames.Count - 1)
+                        {
+                            sb.Append(separator);
+                            sb.Append(" ");
+                        }
+                    }
+                }
+                return sb.ToString();
+            }
+            var properties = new[]
+            {
+                new PropertyByName<NewsLetterSubscription>("CreatedOnUtc", p => p.CreatedOnUtc.ToString()),
+                new PropertyByName<NewsLetterSubscription>("Active", p => p.Active.ToString()),
+                new PropertyByName<NewsLetterSubscription>("Categories", p => GetCategoryNames(p.Categories.ToList())),
+
             };
             return properties;
         }

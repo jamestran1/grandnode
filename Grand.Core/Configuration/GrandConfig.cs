@@ -78,12 +78,6 @@ namespace Grand.Core.Configuration
         public string AmazonRegion { get; set; }
 
         /// <summary>
-        /// A value indicating whether a store owner can install sample data during installation
-        /// </summary>
-        public bool DisableSampleDataDuringInstallation { get; set; }
-
-        
-        /// <summary>
         /// A list of plugins ignored during installation
         /// </summary>
         public string PluginsIgnoredDuringInstallation { get; set; }
@@ -103,6 +97,27 @@ namespace Grand.Core.Configuration
         /// Gets or sets a value indicating whether we compress response
         /// </summary>
         public bool UseResponseCompression { get; set; }
+
+        public bool UseSessionStateTempDataProvider { get; set; }
+        /// <summary>
+        /// Gets or sets a value indicating whether we use url rewrite
+        /// </summary>
+        public bool UseUrlRewrite { get; set; }
+        public bool UrlRewriteHttpsOptions { get; set; }
+        public int UrlRewriteHttpsOptionsStatusCode { get; set; }
+        public int UrlRewriteHttpsOptionsPort { get; set; }
+        public bool UrlRedirectToHttpsPermanent { get; set; }
+
+        /// <summary>
+        /// HTTP Strict Transport Security Protocol
+        /// isn't recommended in development because the HSTS header is highly cacheable by browsers
+        /// </summary>
+        public bool UseHsts { get; set; }
+
+        /// <summary>
+        /// Enforce HTTPS in ASP.NET Core
+        /// </summary>
+        public bool UseHttpsRedirection { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether ignore InstallUrlMiddleware

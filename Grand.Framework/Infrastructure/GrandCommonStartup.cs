@@ -58,6 +58,17 @@ namespace Grand.Framework.Infrastructure
         {
             var grandConfig = EngineContext.Current.Resolve<GrandConfig>();
 
+            //use hsts
+            if(grandConfig.UseHsts)
+            {
+                application.UseHsts();
+            }
+            //enforce HTTPS in ASP.NET Core
+            if (grandConfig.UseHttpsRedirection)
+            {
+                application.UseHttpsRedirection();
+            }
+
             //compression
             if (grandConfig.UseResponseCompression)
             {
@@ -65,52 +76,22 @@ namespace Grand.Framework.Infrastructure
                 application.UseResponseCompression();
             }
 
-            //static files
-            application.UseStaticFiles(new StaticFileOptions
-            {
-                //TODO duplicated code (below)
-                OnPrepareResponse = ctx =>
-                {
-                    if (!String.IsNullOrEmpty(grandConfig.StaticFilesCacheControl))
-                        ctx.Context.Response.Headers.Append(HeaderNames.CacheControl, grandConfig.StaticFilesCacheControl);
-                }
-            });
-            //themes
-            application.UseStaticFiles(new StaticFileOptions
-            {
-                FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), @"Themes")),
-                RequestPath = new PathString("/Themes"),
-                OnPrepareResponse = ctx =>
-                {
-                    if (!String.IsNullOrEmpty(grandConfig.StaticFilesCacheControl))
-                        ctx.Context.Response.Headers.Append(HeaderNames.CacheControl, grandConfig.StaticFilesCacheControl);
-                }
-            });
-            //plugins
-            application.UseStaticFiles(new StaticFileOptions
-            {
-                FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), @"Plugins")),
-                RequestPath = new PathString("/Plugins"),
-                OnPrepareResponse = ctx =>
-                {
-                    if (!String.IsNullOrEmpty(grandConfig.StaticFilesCacheControl))
-                        ctx.Context.Response.Headers.Append(HeaderNames.CacheControl, grandConfig.StaticFilesCacheControl);
-                }
-            });
-            
+            //use static files feature
+            application.UseGrandStaticFiles(grandConfig);
+
             //check whether database is installed
-            if(!grandConfig.IgnoreInstallUrlMiddleware)
+            if (!grandConfig.IgnoreInstallUrlMiddleware)
                 application.UseInstallUrl();
 
             //use HTTP session
-            application.UseSession();
-
-            //use request localization
-            application.UseRequestLocalization();
+            application.UseSession();            
 
             //use powered by
             if (!grandConfig.IgnoreUsePoweredByMiddleware)
                 application.UsePoweredBy();
+            
+            //use request localization
+            application.UseRequestLocalization();
         }
 
         /// <summary>

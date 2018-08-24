@@ -18,11 +18,12 @@ using Grand.Services.Authentication.External;
 using Grand.Core;
 using System.IO;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Mvc.Internal;
 using Grand.Framework.Mvc.Routing;
-using Grand.Core.Domain.Security;
 using Grand.Services.Authentication;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.Extensions.Caching.Memory;
+using Grand.Core.Domain;
+using Grand.Services.Security;
 
 namespace Grand.Framework.Infrastructure.Extensions
 {
@@ -114,8 +115,7 @@ namespace Grand.Framework.Infrastructure.Extensions
                 if (DataSettingsHelper.DatabaseIsInstalled())
                 {
                     //whether to allow the use of anti-forgery cookies from SSL protected page on the other store pages which are not
-                    options.Cookie.SecurePolicy = EngineContext.Current.Resolve<SecuritySettings>().ForceSslForAllPages
-                    ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.None;
+                    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
                 }
             });
         }
@@ -135,9 +135,7 @@ namespace Grand.Framework.Infrastructure.Extensions
                 };
                 if (DataSettingsHelper.DatabaseIsInstalled())
                 {
-                    //whether to allow the use of session values from SSL protected page on the other store pages which are not
-                    options.Cookie.SecurePolicy = EngineContext.Current.Resolve<SecuritySettings>().ForceSslForAllPages
-                        ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.None;
+                    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
                 }
             });
         }
@@ -177,7 +175,6 @@ namespace Grand.Framework.Infrastructure.Extensions
         /// <param name="services">Collection of service descriptors</param>
         public static void AddGrandAuthentication(this IServiceCollection services)
         {
-
             //set default authentication schemes
             var authenticationBuilder = services.AddAuthentication(options =>
             {
@@ -185,6 +182,27 @@ namespace Grand.Framework.Infrastructure.Extensions
                 options.DefaultSignInScheme = GrandCookieAuthenticationDefaults.ExternalAuthenticationScheme;
             });
 
+            //add main cookie authentication
+            authenticationBuilder.AddCookie(GrandCookieAuthenticationDefaults.AuthenticationScheme, options =>
+            {
+                options.Cookie.Name = GrandCookieAuthenticationDefaults.CookiePrefix + GrandCookieAuthenticationDefaults.AuthenticationScheme;
+                options.Cookie.HttpOnly = true;
+                options.LoginPath = GrandCookieAuthenticationDefaults.LoginPath;
+                options.AccessDeniedPath = GrandCookieAuthenticationDefaults.AccessDeniedPath;
+
+                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            });
+
+            //add external authentication
+            authenticationBuilder.AddCookie(GrandCookieAuthenticationDefaults.ExternalAuthenticationScheme, options =>
+            {
+                options.Cookie.Name = GrandCookieAuthenticationDefaults.CookiePrefix + GrandCookieAuthenticationDefaults.ExternalAuthenticationScheme;
+                options.Cookie.HttpOnly = true;
+                options.LoginPath = GrandCookieAuthenticationDefaults.LoginPath;
+                options.AccessDeniedPath = GrandCookieAuthenticationDefaults.AccessDeniedPath;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            });
+            
             //register external authentication plugins now
             var typeFinder = new WebAppTypeFinder();
             var externalAuthConfigurations = typeFinder.FindClassesOfType<IExternalAuthenticationRegistrar>();
@@ -198,58 +216,7 @@ namespace Grand.Framework.Infrastructure.Extensions
             foreach (var instance in externalAuthInstances)
                 instance.Configure(authenticationBuilder);
 
-            //enable main cookie authentication
-            services.AddAuthentication(options =>
-            {
-                options.DefaultScheme = GrandCookieAuthenticationDefaults.AuthenticationScheme;
-            })
-            .AddCookie(GrandCookieAuthenticationDefaults.AuthenticationScheme,
-                options =>
-                {
-                    options.ClaimsIssuer = GrandCookieAuthenticationDefaults.ClaimsIssuer;
-                    options.Cookie = new CookieBuilder()
-                    {
-                        Name = GrandCookieAuthenticationDefaults.CookiePrefix + GrandCookieAuthenticationDefaults.AuthenticationScheme,
-                        HttpOnly = true,
-                    };
-                    options.LoginPath = GrandCookieAuthenticationDefaults.LoginPath;
-                    options.AccessDeniedPath = GrandCookieAuthenticationDefaults.AccessDeniedPath;
-                    options.LogoutPath = GrandCookieAuthenticationDefaults.LogoutPath;
-                    if (DataSettingsHelper.DatabaseIsInstalled())
-                    {
-                        //whether to allow the use of authentication cookies from SSL protected page on the other store pages which are not
-                        options.Cookie.SecurePolicy = EngineContext.Current.Resolve<SecuritySettings>().ForceSslForAllPages
-                        ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.None;
-                    }
-                }
-            );
 
-            //enable external authentication
-            services.AddAuthentication(options =>
-            {
-                options.DefaultScheme = GrandCookieAuthenticationDefaults.ExternalAuthenticationScheme;
-            })
-            .AddCookie(GrandCookieAuthenticationDefaults.ExternalAuthenticationScheme,
-                options =>
-                {
-                    options.ClaimsIssuer = GrandCookieAuthenticationDefaults.ClaimsIssuer;
-                    options.Cookie = new CookieBuilder()
-                    {
-                        Name = GrandCookieAuthenticationDefaults.CookiePrefix + GrandCookieAuthenticationDefaults.AuthenticationScheme,
-                        HttpOnly = true,
-                    };
-                    options.LoginPath = GrandCookieAuthenticationDefaults.LoginPath;
-                    options.AccessDeniedPath = GrandCookieAuthenticationDefaults.AccessDeniedPath;
-                    options.LogoutPath = GrandCookieAuthenticationDefaults.LogoutPath;
-
-                    // whether to allow the use of authentication cookies from SSL protected page on the other store pages which are not
-                    if (DataSettingsHelper.DatabaseIsInstalled())
-                    {
-                        options.Cookie.SecurePolicy = EngineContext.Current.Resolve<SecuritySettings>().ForceSslForAllPages
-                         ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.None;
-                    }
-                }
-            );
         }
 
         /// <summary>
@@ -262,19 +229,49 @@ namespace Grand.Framework.Infrastructure.Extensions
             //add basic MVC feature
             var mvcBuilder = services.AddMvc();
 
+            //set compatibility version
+            mvcBuilder.SetCompatibilityVersion(Microsoft.AspNetCore.Mvc.CompatibilityVersion.Version_2_1);
+
+            var config = services.BuildServiceProvider().GetRequiredService<GrandConfig>();
+
+            //use session-based temp data provider
+            if (config.UseSessionStateTempDataProvider)
+            {
+                mvcBuilder.AddSessionStateTempDataProvider();
+            }
+
             //MVC now serializes JSON with camel case names by default, use this code to avoid it
             mvcBuilder.AddJsonOptions(options => options.SerializerSettings.ContractResolver = new DefaultContractResolver());
 
             //add custom display metadata provider
             mvcBuilder.AddMvcOptions(options => options.ModelMetadataDetailsProviders.Add(new GrandMetadataProvider()));
 
-            //add custom model binder provider (to the top of the provider list)
-            mvcBuilder.AddMvcOptions(options => options.ModelBinderProviders.Insert(0, new GrandModelBinderProvider()));
-
             //add fluent validation
             mvcBuilder.AddFluentValidation(configuration => configuration.ValidatorFactoryType = typeof(GrandValidatorFactory));
 
             return mvcBuilder;
+        }
+
+        /// <summary>
+        /// Add mini profiler service for the application
+        /// </summary>
+        /// <param name="services">Collection of service descriptors</param>
+        public static void AddGrandMiniProfiler(this IServiceCollection services)
+        {
+            //whether database is already installed
+            if (!DataSettingsHelper.DatabaseIsInstalled())
+                return;
+
+            //add MiniProfiler services
+            services.AddMiniProfiler(options => {
+                var memoryCache = EngineContext.Current.Resolve<IMemoryCache>();
+                options.Storage = new StackExchange.Profiling.Storage.MemoryCacheStorage(memoryCache, TimeSpan.FromMinutes(60));
+                //determine who can access the MiniProfiler results
+                options.ResultsAuthorize = request =>
+                    !EngineContext.Current.Resolve<StoreInformationSettings>().DisplayMiniProfilerInPublicStore ||
+                    EngineContext.Current.Resolve<IPermissionService>().Authorize(StandardPermissionProvider.AccessAdminPanel);
+
+            });
         }
 
         /// <summary>

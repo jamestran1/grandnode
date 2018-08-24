@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
@@ -20,6 +21,9 @@ using System.Threading.Tasks;
 using System.Globalization;
 using Microsoft.AspNetCore.Localization;
 using System.Collections.Generic;
+using Microsoft.Net.Http.Headers;
+using Microsoft.Extensions.FileProviders;
+using System.IO;
 
 namespace Grand.Framework.Infrastructure.Extensions
 {
@@ -163,31 +167,7 @@ namespace Grand.Framework.Infrastructure.Extensions
         {
             application.UseMiddleware<InstallUrlMiddleware>();
         }
-
-        /// <summary>
-        /// Set current culture info
-        /// </summary>
-        /// <param name="application">Builder for configuring an application's request pipeline</param>
-        public static void UseCulture(this IApplicationBuilder application)
-        {
-            var lang = EngineContext.Current.Resolve<Grand.Services.Localization.ILanguageService>().GetAllLanguages();
-            var supportedCultures = new List<CultureInfo>();
-            foreach (var item in lang)
-            {
-                supportedCultures.Add(new CultureInfo(item.LanguageCulture));
-            }
-
-            application.UseRequestLocalization(new RequestLocalizationOptions
-            {
-                DefaultRequestCulture = new RequestCulture("en-US"),
-                // Formatting numbers, dates, etc.
-                SupportedCultures = supportedCultures,
-                // UI strings that we have localized.
-                SupportedUICultures = supportedCultures
-            });
-
-        }
-
+        
         /// <summary>
         /// Congifure authentication
         /// </summary>
@@ -211,10 +191,51 @@ namespace Grand.Framework.Infrastructure.Extensions
         }
 
         /// <summary>
+        /// Configure static file serving
+        /// </summary>
+        /// <param name="application">Builder for configuring an application's request pipeline</param>
+        public static void UseGrandStaticFiles(this IApplicationBuilder application, GrandConfig grandConfig)
+        {
+            //static files
+            application.UseStaticFiles(new StaticFileOptions
+            {
+                OnPrepareResponse = ctx =>
+                {
+                    if (!String.IsNullOrEmpty(grandConfig.StaticFilesCacheControl))
+                        ctx.Context.Response.Headers.Append(HeaderNames.CacheControl, grandConfig.StaticFilesCacheControl);
+                }
+            });
+            //themes
+            application.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), @"Themes")),
+                RequestPath = new PathString("/Themes"),
+                OnPrepareResponse = ctx =>
+                {
+                    if (!String.IsNullOrEmpty(grandConfig.StaticFilesCacheControl))
+                        ctx.Context.Response.Headers.Append(HeaderNames.CacheControl, grandConfig.StaticFilesCacheControl);
+                }
+            });
+            //plugins
+            application.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), @"Plugins")),
+                RequestPath = new PathString("/Plugins"),
+                OnPrepareResponse = ctx =>
+                {
+                    if (!String.IsNullOrEmpty(grandConfig.StaticFilesCacheControl))
+                        ctx.Context.Response.Headers.Append(HeaderNames.CacheControl, grandConfig.StaticFilesCacheControl);
+                }
+            });
+
+        }
+
+
+        /// <summary>
         /// Create and configure MiniProfiler service
         /// </summary>
         /// <param name="application">Builder for configuring an application's request pipeline</param>
-        public static void UseMiniProfiler(this IApplicationBuilder application)
+        public static void UseProfiler(this IApplicationBuilder application)
         {
             //whether database is already installed
             if (!DataSettingsHelper.DatabaseIsInstalled())
@@ -223,17 +244,7 @@ namespace Grand.Framework.Infrastructure.Extensions
             //whether MiniProfiler should be displayed
             if (EngineContext.Current.Resolve<StoreInformationSettings>().DisplayMiniProfilerInPublicStore)
             {
-                var memoryCache = EngineContext.Current.Resolve<IMemoryCache>();
-                application.UseMiniProfiler(new MiniProfilerOptions
-                {
-                    //use memory cache provider for storing each result
-                    Storage = new MemoryCacheStorage(memoryCache, TimeSpan.FromMinutes(60)),
-
-                    //determine who can access the MiniProfiler results
-                    ResultsAuthorize = request =>
-                        !EngineContext.Current.Resolve<StoreInformationSettings>().DisplayMiniProfilerInPublicStore ||
-                        EngineContext.Current.Resolve<IPermissionService>().Authorize(StandardPermissionProvider.AccessAdminPanel)
-                });
+                application.UseMiniProfiler();
             }
         }
 

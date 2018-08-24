@@ -18,8 +18,8 @@ namespace Grand.Framework.Infrastructure
         /// <param name="configuration">Configuration root of the application</param>
         public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
         {
-            //add MiniProfiler services
-            services.AddMiniProfiler();
+            //add miniprofiler
+            services.AddGrandMiniProfiler();
 
             //add and configure MVC feature
             services.AddGrandMvc();
@@ -35,7 +35,7 @@ namespace Grand.Framework.Infrastructure
         public void Configure(IApplicationBuilder application)
         {
             //add MiniProfiler
-            application.UseMiniProfiler();
+            application.UseProfiler();
 
             //MVC routing
             application.UseGrandMvc();

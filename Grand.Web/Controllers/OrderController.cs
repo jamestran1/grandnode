@@ -1,21 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using Microsoft.AspNetCore.Mvc;
-using Grand.Core;
+﻿using Grand.Core;
 using Grand.Core.Domain.Customers;
 using Grand.Core.Domain.Orders;
 using Grand.Core.Domain.Shipping;
+using Grand.Core.Infrastructure;
+using Grand.Framework.Controllers;
+using Grand.Framework.Security;
 using Grand.Services.Common;
 using Grand.Services.Orders;
 using Grand.Services.Payments;
 using Grand.Services.Shipping;
-using Grand.Framework.Controllers;
-using Grand.Framework.Security;
-using Grand.Core.Infrastructure;
 using Grand.Web.Services;
-using Grand.Framework.Mvc.Filters;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Collections.Generic;
+using System.IO;
 
 namespace Grand.Web.Controllers
 {
@@ -28,7 +27,6 @@ namespace Grand.Web.Controllers
         private readonly IWorkContext _workContext;
         private readonly IOrderProcessingService _orderProcessingService;
         private readonly IPaymentService _paymentService;
-        private readonly IWebHelper _webHelper;
 
         #endregion
 
@@ -38,15 +36,13 @@ namespace Grand.Web.Controllers
             IOrderService orderService,
             IWorkContext workContext,
             IOrderProcessingService orderProcessingService, 
-            IPaymentService paymentService, 
-            IWebHelper webHelper)
+            IPaymentService paymentService)
         {
             this._orderWebService = orderWebService;
             this._orderService = orderService;
             this._workContext = workContext;
             this._orderProcessingService = orderProcessingService;
             this._paymentService = paymentService;
-            this._webHelper = webHelper;
         }
 
         #endregion
@@ -54,7 +50,6 @@ namespace Grand.Web.Controllers
         #region Methods
 
         //My account / Orders
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult CustomerOrders()
         {
             if (!_workContext.CurrentCustomer.IsRegistered())
@@ -101,7 +96,6 @@ namespace Grand.Web.Controllers
         }
 
         //My account / Reward points
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult CustomerRewardPoints()
         {
             if (!_workContext.CurrentCustomer.IsRegistered())
@@ -117,7 +111,6 @@ namespace Grand.Web.Controllers
         }
 
         //My account / Order details page
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult Details(string orderId)
         {
             var order = _orderService.GetOrderById(orderId);
@@ -130,7 +123,6 @@ namespace Grand.Web.Controllers
         }
 
         //My account / Order details page / Print
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult PrintOrderDetails(string orderId)
         {
             var order = _orderService.GetOrderById(orderId);
@@ -144,7 +136,6 @@ namespace Grand.Web.Controllers
         }
 
         //My account / Order details page / Cancel Unpaid Order
-        [HttpsRequirement(SslRequirement.Yes)]
         public IActionResult CancelOrder(string orderId)
         {
             var orderSettings = EngineContext.Current.Resolve<OrderSettings>();
@@ -195,7 +186,7 @@ namespace Grand.Web.Controllers
         [HttpPost, ActionName("Details")]
         [FormValueRequired("repost-payment")]
         [PublicAntiForgery]
-        public virtual IActionResult RePostPayment(string orderId)
+        public virtual IActionResult RePostPayment(string orderId, [FromServices] IWebHelper webHelper)
         {
             var order = _orderService.GetOrderById(orderId);
             if (order == null || order.Deleted || _workContext.CurrentCustomer.Id != order.CustomerId)
@@ -210,7 +201,7 @@ namespace Grand.Web.Controllers
             };
             _paymentService.PostProcessPayment(postProcessPaymentRequest);
 
-            if (_webHelper.IsRequestBeingRedirected || _webHelper.IsPostBeingDone)
+            if (webHelper.IsRequestBeingRedirected || webHelper.IsPostBeingDone)
             {
                 //redirection or POST has been done in PostProcessPayment
                 return Content("Redirected");
@@ -222,7 +213,6 @@ namespace Grand.Web.Controllers
         }
 
         //My account / Order details page / Shipment details page
-        [HttpsRequirement(SslRequirement.Yes)]
         public virtual IActionResult ShipmentDetails(string shipmentId)
         {
             var shipment = EngineContext.Current.Resolve<IShipmentService>().GetShipmentById(shipmentId);

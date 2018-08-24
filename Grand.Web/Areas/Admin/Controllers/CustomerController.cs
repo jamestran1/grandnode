@@ -811,6 +811,8 @@ namespace Grand.Web.Areas.Admin.Controllers
             model.Address.EmailRequired = true;
             model.Address.CompanyEnabled = _addressSettings.CompanyEnabled;
             model.Address.CompanyRequired = _addressSettings.CompanyRequired;
+            model.Address.VatNumberEnabled = _addressSettings.VatNumberEnabled;
+            model.Address.VatNumberRequired = _addressSettings.VatNumberRequired;
             model.Address.CountryEnabled = _addressSettings.CountryEnabled;
             model.Address.StateProvinceEnabled = _addressSettings.StateProvinceEnabled;
             model.Address.CityEnabled = _addressSettings.CityEnabled;
@@ -2029,7 +2031,7 @@ namespace Grand.Web.Areas.Admin.Controllers
         }
 
         [HttpPost]
-        public IActionResult ReportCustomerTimeChar(DataSourceRequest command, DateTime? startDate, DateTime? endDate)
+        public IActionResult ReportCustomerTimeChart(DataSourceRequest command, DateTime? startDate, DateTime? endDate)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageCustomers))
                 return Content("");

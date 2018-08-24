@@ -723,6 +723,7 @@ namespace Grand.Services.Messages
             tokens.Add(new Token("Order.BillingEmail", order.BillingAddress.Email));
             tokens.Add(new Token("Order.BillingFaxNumber", order.BillingAddress.FaxNumber));
             tokens.Add(new Token("Order.BillingCompany", order.BillingAddress.Company));
+            tokens.Add(new Token("Order.BillingVatNumber", order.BillingAddress.VatNumber));
             tokens.Add(new Token("Order.BillingAddress1", order.BillingAddress.Address1));
             tokens.Add(new Token("Order.BillingAddress2", order.BillingAddress.Address2));
             tokens.Add(new Token("Order.BillingCity", order.BillingAddress.City));
@@ -769,8 +770,11 @@ namespace Grand.Services.Messages
             if (language != null && !String.IsNullOrEmpty(language.LanguageCulture))
             {
                 var customer = EngineContext.Current.Resolve<ICustomerService>().GetCustomerById(order.CustomerId);
-                DateTime createdOn = _dateTimeHelper.ConvertToUserTime(order.CreatedOnUtc, TimeZoneInfo.Utc, _dateTimeHelper.GetCustomerTimeZone(customer));
-                tokens.Add(new Token("Order.CreatedOn", createdOn.ToString("D", new CultureInfo(language.LanguageCulture))));
+                if (customer != null)
+                {
+                    DateTime createdOn = _dateTimeHelper.ConvertToUserTime(order.CreatedOnUtc, TimeZoneInfo.Utc, _dateTimeHelper.GetCustomerTimeZone(customer));
+                    tokens.Add(new Token("Order.CreatedOn", createdOn.ToString("D", new CultureInfo(language.LanguageCulture))));
+                }
             }
             else
             {
@@ -1015,19 +1019,27 @@ namespace Grand.Services.Messages
             _eventPublisher.EntityTokensAdded(vendorReview, tokens);
         }
 
-        public virtual void AddBlogCommentTokens(IList<Token> tokens, BlogComment blogComment)
+        public virtual void AddBlogCommentTokens(string storeId, IList<Token> tokens, BlogComment blogComment)
         {
             var blogPost = EngineContext.Current.Resolve<IBlogService>().GetBlogPostById(blogComment.BlogPostId);
             tokens.Add(new Token("BlogComment.BlogPostTitle", blogPost.Title));
+
+            var blogUrl = $"{GetStoreUrl(storeId)}{blogPost.GetSeName()}";
+            tokens.Add(new Token("BlogPost.URL", blogUrl, true));
 
             //event notification
             _eventPublisher.EntityTokensAdded(blogComment, tokens);
         }
 
-        public virtual void AddNewsCommentTokens(IList<Token> tokens, NewsComment newsComment)
+        public virtual void AddNewsCommentTokens(string storeId, IList<Token> tokens, NewsComment newsComment)
         {
             var newsitem = EngineContext.Current.Resolve<INewsService>().GetNewsById(newsComment.NewsItemId);
             tokens.Add(new Token("NewsComment.NewsTitle", newsitem.Title));
+            tokens.Add(new Token("NewsComment.CommentText", newsComment.CommentText));
+            tokens.Add(new Token("NewsComment.CommentTitle", newsComment.CommentTitle));
+
+            var newsUrl = $"{GetStoreUrl(storeId)}{newsitem.GetSeName()}";
+            tokens.Add(new Token("News.Url", newsUrl, true));
 
             //event notification
             _eventPublisher.EntityTokensAdded(newsComment, tokens);
@@ -1264,6 +1276,7 @@ namespace Grand.Services.Messages
                 "%ContactUs.SenderEmail%",
                 "%ContactUs.SenderName%",
                 "%ContactUs.Body%",
+                "%ContactUs.AttributeDescription%",
                 "%Vendor.Address1%",
                 "%Vendor.Address2%",
                 "%Vendor.City%",
@@ -1281,8 +1294,12 @@ namespace Grand.Services.Messages
                 "%NewsLetterSubscription.ActivationUrl%",
                 "%NewsLetterSubscription.DeactivationUrl%", 
                 "%ProductReview.ProductName%", 
-                "%BlogComment.BlogPostTitle%", 
+                "%BlogComment.BlogPostTitle%",
+                "%BlogPost.URL%",
                 "%NewsComment.NewsTitle%",
+                "%NewsComment.CommentText%",
+                "%NewsComment.CommentTitle%",
+                "%News.Url%",
                 "%Product.ID%", 
                 "%Product.Name%",
                 "%Product.ShortDescription%", 

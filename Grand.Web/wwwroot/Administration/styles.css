@@ -155,8 +155,12 @@ select.form-control {
     margin-top: 10px;
 }
 
-label.mt-checkbox.mt-checkbox-outline{
-        margin-top: 6px;
+.k-grid label.mt-checkbox.mt-checkbox-outline {
+    margin-top: 6px;
+    padding-left: 20px;
+}
+.mt-checkbox, .mt-radio {
+    margin-top: 6px;
 }
 
 a span.username {
@@ -264,23 +268,13 @@ a span.username {
     padding-left: 3px;
 }
 
-@media only screen and (min-width: 1200px) {
-    .k-grid-header {
-        padding-right: 0px !important
-    }
 
-    .k-grid-content::-webkit-scrollbar {
-        width: 0px !important;
-    }
-
-    .k-grid.k-widget {
-        overflow-x: hidden;
-    }
-}
-
-@media only screen and (min-device-width : 375px) and (max-device-width : 667px) {
+@media only screen and (min-device-width : 375px) and (max-device-width : 767px) {
     .form-horizontal .form-body.col-md-6.advanced-filter {
         padding: 0;
+    }
+    .col-md-4.col-sm-4.text-right {
+        text-align: left;
     }
 }
 
@@ -319,4 +313,10 @@ a span.username {
 
 textarea.form-control.k-input {
     padding: 6px 12px;
+}
+
+.k-grid label input[type=checkbox] {
+    position: unset;
+    width: 0;
+    height: 0;
 }

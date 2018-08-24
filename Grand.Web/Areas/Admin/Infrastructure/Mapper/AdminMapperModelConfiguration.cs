@@ -51,6 +51,7 @@ using Grand.Web.Areas.Admin.Models.Tax;
 using Grand.Web.Areas.Admin.Models.Templates;
 using Grand.Web.Areas.Admin.Models.Topics;
 using Grand.Web.Areas.Admin.Models.Vendors;
+using Grand.Web.Areas.Admin.Extensions;
 
 namespace Grand.Web.Areas.Admin.Infrastructure.Mapper
 {
@@ -86,7 +87,12 @@ namespace Grand.Web.Areas.Admin.Infrastructure.Mapper
                .ForMember(dest => dest.PhoneRequired, mo => mo.Ignore())
                .ForMember(dest => dest.FaxEnabled, mo => mo.Ignore())
                .ForMember(dest => dest.FaxRequired, mo => mo.Ignore())
+               .ForMember(dest => dest.CountryName,
+                    mo => mo.MapFrom(src => !string.IsNullOrEmpty(src.CountryId) ? src.CountryName(): null))
+               .ForMember(dest => dest.StateProvinceName,
+                    mo => mo.MapFrom(src => !string.IsNullOrEmpty(src.StateProvinceId) ? src.StateProvinceName() : null))
                .ForMember(dest => dest.CustomProperties, mo => mo.Ignore());
+
 
             //address
             CreateMap<AddressModel, Address>()
@@ -721,6 +727,25 @@ namespace Grand.Web.Areas.Admin.Infrastructure.Mapper
                 .ForMember(dest => dest.AttributeControlType, mo => mo.Ignore())
                 .ForMember(dest => dest.ConditionAttributeXml, mo => mo.Ignore())
                 .ForMember(dest => dest.CheckoutAttributeValues, mo => mo.Ignore());
+
+            //contact attributes
+            CreateMap<ContactAttribute, ContactAttributeModel>()
+                .ForMember(dest => dest.Locales, mo => mo.Ignore())
+                .ForMember(dest => dest.AttributeControlTypeName, mo => mo.Ignore())
+                .ForMember(dest => dest.Locales, mo => mo.Ignore())
+                .ForMember(dest => dest.AvailableStores, mo => mo.Ignore())
+                .ForMember(dest => dest.SelectedStoreIds, mo => mo.Ignore())
+                .ForMember(dest => dest.AvailableCustomerRoles, mo => mo.Ignore())
+                .ForMember(dest => dest.SelectedCustomerRoleIds, mo => mo.Ignore())
+                .ForMember(dest => dest.ConditionAllowed, mo => mo.Ignore())
+                .ForMember(dest => dest.ConditionModel, mo => mo.Ignore())
+                .ForMember(dest => dest.CustomProperties, mo => mo.Ignore());
+            CreateMap<ContactAttributeModel, ContactAttribute>()
+                .ForMember(dest => dest.Id, mo => mo.Ignore())
+                .ForMember(dest => dest.Locales, mo => mo.Ignore())
+                .ForMember(dest => dest.AttributeControlType, mo => mo.Ignore())
+                .ForMember(dest => dest.ConditionAttributeXml, mo => mo.Ignore())
+                .ForMember(dest => dest.ContactAttributeValues, mo => mo.Ignore());
             //customer attributes
             CreateMap<CustomerAttribute, CustomerAttributeModel>()
                 .ForMember(dest => dest.Locales, mo => mo.Ignore())

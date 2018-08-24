@@ -2,7 +2,6 @@
 using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Grand.Core;
-using Grand.Core.Caching;
 using Grand.Core.Domain.Catalog;
 using Grand.Core.Domain.Customers;
 using Grand.Core.Domain.Media;
@@ -36,16 +35,12 @@ namespace Grand.Web.Controllers
         #region Fields
 
         private readonly ICatalogWebService _catalogWebService;
-        private readonly ICategoryService _categoryService;
-        private readonly IProductWebService _productWebService;
-        private readonly IManufacturerService _manufacturerService;
-        private readonly IProductService _productService;
+        private readonly IProductWebService _productWebService;        
         private readonly IVendorService _vendorService;
         private readonly IWorkContext _workContext;
         private readonly IStoreContext _storeContext;
         private readonly ILocalizationService _localizationService;
         private readonly IWebHelper _webHelper;
-        private readonly IProductTagService _productTagService;
         private readonly IGenericAttributeService _genericAttributeService;
         private readonly IAclService _aclService;
         private readonly IStoreMappingService _storeMappingService;
@@ -53,27 +48,19 @@ namespace Grand.Web.Controllers
         private readonly ICustomerActivityService _customerActivityService;
         private readonly ICustomerActionEventService _customerActionEventService;
         private readonly IVendorWebService _vendorWebService;
-        private readonly CaptchaSettings _captchaSettings;
-        private readonly MediaSettings _mediaSettings;
-        private readonly CatalogSettings _catalogSettings;
         private readonly VendorSettings _vendorSettings;
-        private readonly IEventPublisher _eventPublisher;
-        private readonly IOrderService _orderService;
+        
         #endregion
 
         #region Constructors
 
         public CatalogController(ICatalogWebService catalogWebService,
-            ICategoryService categoryService,
             IProductWebService productWebService,
-            IManufacturerService manufacturerService,
-            IProductService productService, 
             IVendorService vendorService,
             IWorkContext workContext, 
             IStoreContext storeContext,
             ILocalizationService localizationService,
             IWebHelper webHelper, 
-            IProductTagService productTagService,
             IGenericAttributeService genericAttributeService,
             IAclService aclService,
             IStoreMappingService storeMappingService,
@@ -81,24 +68,15 @@ namespace Grand.Web.Controllers
             ICustomerActivityService customerActivityService,
             ICustomerActionEventService customerActionEventService,
             IVendorWebService vendorWebService,
-            CaptchaSettings captchaSettings,
-            MediaSettings mediaSettings,
-            CatalogSettings catalogSettings,
-            VendorSettings vendorSettings,
-            IEventPublisher eventPublisher,
-            IOrderService orderService)
+            VendorSettings vendorSettings)
         {
             this._catalogWebService = catalogWebService;
-            this._categoryService = categoryService;
             this._productWebService = productWebService;
-            this._manufacturerService = manufacturerService;
-            this._productService = productService;
             this._vendorService = vendorService;
             this._workContext = workContext;
             this._storeContext = storeContext;
             this._localizationService = localizationService;
             this._webHelper = webHelper;
-            this._productTagService = productTagService;
             this._genericAttributeService = genericAttributeService;
             this._aclService = aclService;
             this._storeMappingService = storeMappingService;
@@ -106,22 +84,16 @@ namespace Grand.Web.Controllers
             this._customerActivityService = customerActivityService;
             this._customerActionEventService = customerActionEventService;
             this._vendorWebService = vendorWebService;
-            this._captchaSettings = captchaSettings;
-            this._mediaSettings = mediaSettings;
-            this._catalogSettings = catalogSettings;
             this._vendorSettings = vendorSettings;
-            this._eventPublisher = eventPublisher;
-            this._orderService = orderService;
         }
 
         #endregion
 
         #region Categories
         
-        [HttpsRequirement(SslRequirement.No)]
         public virtual IActionResult Category(string categoryId, CatalogPagingFilteringModel command)
         {
-            var category = _categoryService.GetCategoryById(categoryId);
+            var category = _catalogWebService.GetCategoryById(categoryId);
             if (category == null)
                 return InvokeHttp404();
 
@@ -166,10 +138,9 @@ namespace Grand.Web.Controllers
 
         #region Manufacturers
 
-        [HttpsRequirement(SslRequirement.No)]
         public virtual IActionResult Manufacturer(string manufacturerId, CatalogPagingFilteringModel command)
         {
-            var manufacturer = _manufacturerService.GetManufacturerById(manufacturerId);
+            var manufacturer = _catalogWebService.GetManufacturerById(manufacturerId);
             if (manufacturer == null)
                 return InvokeHttp404();
 
@@ -211,7 +182,6 @@ namespace Grand.Web.Controllers
             return View(templateViewPath, model);
         }
 
-        [HttpsRequirement(SslRequirement.No)]
         public virtual IActionResult ManufacturerAll()
         {
             var model = _catalogWebService.PrepareManufacturerAll();
@@ -222,7 +192,6 @@ namespace Grand.Web.Controllers
 
         #region Vendors
 
-        [HttpsRequirement(SslRequirement.No)]
         public virtual IActionResult Vendor(string vendorId, CatalogPagingFilteringModel command)
         {
             var vendor = _vendorService.GetVendorById(vendorId);
@@ -250,7 +219,6 @@ namespace Grand.Web.Controllers
             return View(model);
         }
 
-        [HttpsRequirement(SslRequirement.No)]
         public virtual IActionResult VendorAll()
         {
             //we don't allow viewing of vendors if "vendors" block is hidden
@@ -266,7 +234,6 @@ namespace Grand.Web.Controllers
 
         #region Vendor reviews
 
-        [HttpsRequirement(SslRequirement.No)]
         public virtual IActionResult VendorReviews(string vendorId)
         {
             var vendor = _vendorService.GetVendorById(vendorId);
@@ -287,16 +254,17 @@ namespace Grand.Web.Controllers
         [FormValueRequired("add-review")]
         [PublicAntiForgery]
         [ValidateCaptcha]
-        public virtual IActionResult VendorReviewsAdd(string vendorId, VendorReviewsModel model, bool captchaValid)
+        public virtual IActionResult VendorReviewsAdd(string vendorId, VendorReviewsModel model, bool captchaValid, 
+            [FromServices] IOrderService orderService, [FromServices] IEventPublisher eventPublisher, [FromServices] CaptchaSettings captchaSettings)
         {
             var vendor = _vendorService.GetVendorById(vendorId);
             if (vendor == null || !vendor.Active || !vendor.AllowCustomerReviews)
                 return RedirectToRoute("HomePage");
 
             //validate CAPTCHA
-            if (_captchaSettings.Enabled && _captchaSettings.ShowOnVendorReviewPage && !captchaValid)
+            if (captchaSettings.Enabled && captchaSettings.ShowOnVendorReviewPage && !captchaValid)
             {
-                ModelState.AddModelError("", _captchaSettings.GetWrongCaptchaMessage(_localizationService));
+                ModelState.AddModelError("", captchaSettings.GetWrongCaptchaMessage(_localizationService));
             }
 
             if (_workContext.CurrentCustomer.IsGuest() && !_vendorSettings.AllowAnonymousUsersToReviewVendor)
@@ -306,7 +274,7 @@ namespace Grand.Web.Controllers
 
             //allow reviews only by customer that bought something from this vendor
             if (_vendorSettings.VendorReviewPossibleOnlyAfterPurchasing &&
-                    !_orderService.SearchOrders(customerId: _workContext.CurrentCustomer.Id, vendorId: vendorId, os: OrderStatus.Complete).Any())
+                    !orderService.SearchOrders(customerId: _workContext.CurrentCustomer.Id, vendorId: vendorId, os: OrderStatus.Complete).Any())
                 ModelState.AddModelError(string.Empty, _localizationService.GetResource("VendorReviews.VendorReviewPossibleOnlyAfterPurchasing"));
 
             if (ModelState.IsValid)
@@ -317,7 +285,7 @@ namespace Grand.Web.Controllers
 
                 //raise event
                 if (vendorReview.IsApproved)
-                    _eventPublisher.Publish(new VendorReviewApprovedEvent(vendorReview));
+                    eventPublisher.Publish(new VendorReviewApprovedEvent(vendorReview));
 
                 _vendorWebService.PrepareVendorReviewsModel(model, vendor);
                 model.AddVendorReview.Title = null;
@@ -410,11 +378,9 @@ namespace Grand.Web.Controllers
 
         #region Product tags
 
-
-        [HttpsRequirement(SslRequirement.No)]
-        public virtual IActionResult ProductsByTag(string productTagId, CatalogPagingFilteringModel command)
+        public virtual IActionResult ProductsByTag(string productTagId, CatalogPagingFilteringModel command, [FromServices] IProductTagService productTagService)
         {
-            var productTag = _productTagService.GetProductTagById(productTagId);
+            var productTag = productTagService.GetProductTagById(productTagId);
             if (productTag == null)
                 return InvokeHttp404();
 
@@ -422,7 +388,6 @@ namespace Grand.Web.Controllers
             return View(model);
         }
 
-        [HttpsRequirement(SslRequirement.No)]
         public virtual IActionResult ProductTagsAll()
         {
             var model = _catalogWebService.PrepareProductTagsAll();
@@ -433,7 +398,6 @@ namespace Grand.Web.Controllers
 
         #region Searching
 
-        [HttpsRequirement(SslRequirement.No)]
         public virtual IActionResult Search(SearchModel model, CatalogPagingFilteringModel command)
         {
             //'Continue shopping' URL
@@ -447,19 +411,21 @@ namespace Grand.Web.Controllers
             return View(searchmodel);
         }
 
-        public virtual IActionResult SearchTermAutoComplete(string term, string categoryId)
+        public virtual IActionResult SearchTermAutoComplete(string term, string categoryId, 
+            [FromServices] IProductService productService, [FromServices] CatalogSettings catalogSettings,
+            [FromServices] MediaSettings mediaSettings)
         {
-            if (String.IsNullOrWhiteSpace(term) || term.Length < _catalogSettings.ProductSearchTermMinimumLength)
+            if (String.IsNullOrWhiteSpace(term) || term.Length < catalogSettings.ProductSearchTermMinimumLength)
                 return Content("");
 
             //products
-            var productNumber = _catalogSettings.ProductSearchAutoCompleteNumberOfProducts > 0 ?
-                _catalogSettings.ProductSearchAutoCompleteNumberOfProducts : 10;
+            var productNumber = catalogSettings.ProductSearchAutoCompleteNumberOfProducts > 0 ?
+                catalogSettings.ProductSearchAutoCompleteNumberOfProducts : 10;
             var categoryIds = new List<string>();
             if (!string.IsNullOrEmpty(categoryId))
             {
                 categoryIds.Add(categoryId);
-                if (_catalogSettings.ShowProductsFromSubcategoriesInSearchBox)
+                if (catalogSettings.ShowProductsFromSubcategoriesInSearchBox)
                 {
                     //include subcategories
                     categoryIds.AddRange(_catalogWebService.GetChildCategoryIds(categoryId));
@@ -467,17 +433,17 @@ namespace Grand.Web.Controllers
             }
 
 
-            var products = _productService.SearchProducts(
+            var products = productService.SearchProducts(
                 storeId: _storeContext.CurrentStore.Id,
                 keywords: term,
                 categoryIds: categoryIds,
-                searchSku: _catalogSettings.SearchBySku,
-                searchDescriptions: _catalogSettings.SearchByDescription,
+                searchSku: catalogSettings.SearchBySku,
+                searchDescriptions: catalogSettings.SearchByDescription,
                 languageId: _workContext.WorkingLanguage.Id,
                 visibleIndividuallyOnly: true,
                 pageSize: productNumber);
 
-            var models =  _productWebService.PrepareProductOverviewModels(products, false, _catalogSettings.ShowProductImagesInSearchAutoComplete, _mediaSettings.AutoCompleteSearchThumbPictureSize).ToList();
+            var models =  _productWebService.PrepareProductOverviewModels(products, false, catalogSettings.ShowProductImagesInSearchAutoComplete, mediaSettings.AutoCompleteSearchThumbPictureSize).ToList();
             var result = (from p in models
                           select new
                           {

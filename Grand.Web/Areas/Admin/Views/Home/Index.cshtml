@@ -109,7 +109,7 @@
                             </div>
                         </div>
                         <div class="col-sm-12 col-lg-8 col-md-12">
-                            @await Component.InvokeAsync("CustomerReportCustomerTimeChar")
+                            @await Component.InvokeAsync("CustomerReportCustomerTimeChart")
                         </div>
                     </div>
                 </div>
@@ -134,13 +134,13 @@
                                 </div>
                             </div>
                             <div class="col-sm-12 col-lg-8 col-md-12">
-                                @await Component.InvokeAsync("OrderReportOrderTimeChar")
+                                @await Component.InvokeAsync("OrderReportOrderTimeChart")
                             </div>
                         }
                         else
                         {
                             <div class="col-sm-12 col-lg-12 col-md-12">
-                                @await Component.InvokeAsync("OrderReportOrderTimeChar")
+                                @await Component.InvokeAsync("OrderReportOrderTimeChart")
                             </div>
                         }
                     </div>
@@ -320,15 +320,9 @@
     Dashboard.init();
 
     $('#dashboard-report-range').on('apply.daterangepicker', function (ev, picker) {
-        var chartOrderTime = $('#order-time-char').data('kendoChart');
-        if(chartOrderTime!=undefined)
-        {
-            chartOrderTime.dataSource.read();
-        }
-        var chartCustomerTime = $('#customer-time-char').data('kendoChart');
-        if (chartCustomerTime != undefined) {
-            chartCustomerTime.dataSource.read();
-        }
+        initReportCustomerTimeChart(false);
+        initReportOrderTimeChart(false);
+
         var gridOrders = $('#latest-orders-grid').data('kendoGrid');
         if (gridOrders != undefined) {
             gridOrders.dataSource.read();
@@ -341,8 +335,6 @@
                 $(item).load(url);
             }
         });
-
-
     });
 
 </script>

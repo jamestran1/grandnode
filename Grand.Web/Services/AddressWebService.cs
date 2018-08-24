@@ -100,6 +100,7 @@ namespace Grand.Web.Services
                 model.LastName = address.LastName;
                 model.Email = address.Email;
                 model.Company = address.Company;
+                model.VatNumber = address.VatNumber;
                 model.CountryId = address.CountryId;
                 Country country = null;
                 if (!String.IsNullOrEmpty(address.CountryId))
@@ -128,10 +129,13 @@ namespace Grand.Web.Services
                 model.FirstName = customer.GetAttribute<string>(SystemCustomerAttributeNames.FirstName);
                 model.LastName = customer.GetAttribute<string>(SystemCustomerAttributeNames.LastName);
                 model.Company = customer.GetAttribute<string>(SystemCustomerAttributeNames.Company);
+                model.VatNumber = customer.GetAttribute<string>(SystemCustomerAttributeNames.VatNumber);
                 model.Address1 = customer.GetAttribute<string>(SystemCustomerAttributeNames.StreetAddress);
                 model.Address2 = customer.GetAttribute<string>(SystemCustomerAttributeNames.StreetAddress2);
                 model.ZipPostalCode = customer.GetAttribute<string>(SystemCustomerAttributeNames.ZipPostalCode);
                 model.City = customer.GetAttribute<string>(SystemCustomerAttributeNames.City);
+                model.CountryId = customer.GetAttribute<string>(SystemCustomerAttributeNames.CountryId);
+                model.StateProvinceId = customer.GetAttribute<string>(SystemCustomerAttributeNames.StateProvinceId);
                 model.PhoneNumber = customer.GetAttribute<string>(SystemCustomerAttributeNames.Phone);
                 model.FaxNumber = customer.GetAttribute<string>(SystemCustomerAttributeNames.Fax);
             }
@@ -186,6 +190,8 @@ namespace Grand.Web.Services
             //form fields
             model.CompanyEnabled = addressSettings.CompanyEnabled;
             model.CompanyRequired = addressSettings.CompanyRequired;
+            model.VatNumberEnabled = addressSettings.VatNumberEnabled;
+            model.VatNumberRequired = addressSettings.VatNumberRequired;
             model.StreetAddressEnabled = addressSettings.StreetAddressEnabled;
             model.StreetAddressRequired = addressSettings.StreetAddressRequired;
             model.StreetAddress2Enabled = addressSettings.StreetAddress2Enabled;

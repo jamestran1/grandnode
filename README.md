@@ -1,4 +1,4 @@
-Thank you for choosing GrandNode! It's an open source, free, cross-platform e-commerce software based on ASP.NET Core 2.0 and MongoDB - NoSQL database. You can run it on Linux, Windows and MacOS easily. GrandNode also supports Docker, so you are able to install it just in a seconds with Docker.
+Thank you for choosing GrandNode! It's an open source, free, cross-platform e-commerce software based on ASP.NET Core 2.1 and MongoDB - NoSQL database. You can run it on Linux, Windows and MacOS easily. GrandNode also supports Docker, so you are able to install it just in a seconds with Docker.
 
 It can be used for any kind of online store. GrandNode is a perfect choice for people who want to sell simple products. It's solution dedicated for the most demanding users. You can also create auctions, booking/reservation products or product kits. GrandNode became a mature solution especially for developers who want to develop a modern, functional and high performance e-commerce system. 
 
@@ -30,12 +30,12 @@ Forums: [http://www.grandnode.com/boards/](http://www.grandnode.com/boards/)
 
 ## Development status ## 
 
-The latest stable version is 4.10
-Active development version: 4.20 (branch [develop](https://github.com/grandnode/grandnode/tree/develop))
+The latest stable version is 4.20
+Active development version: 4.30 (branch [develop](https://github.com/grandnode/grandnode/projects/1))
 
-[Roadmap for 4.20](https://github.com/grandnode/grandnode/milestone/3)
+[Roadmap for 4.30](https://github.com/grandnode/grandnode/projects/1)
 
-[Tickets linked to 4.20](https://github.com/grandnode/grandnode/issues)
+[Tickets linked to 4.30](https://github.com/grandnode/grandnode/issues)
 
 ## How to contribute code ##
 
@@ -67,12 +67,12 @@ And that's all, you are GrandNode official contributor!
 ##### Frontend:
 [http://demo.grandnode.com/](http://demo.grandnode.com/)
 
-[![ScreenShot](https://grandnode.com/content/images/storefront.gif)](http://demo.grandnode.com/)
+[![ScreenShot](https://grandnode.com/content/images/uploaded/storepublic.gif)](http://demo.grandnode.com/)
 
 ##### Backend:
 [http://demo.grandnode.com/login?ReturnUrl=%2fadmin](http://demo.grandnode.com/login?ReturnUrl=%2fadmin)
 
-[![ScreenShot](https://grandnode.com/content/images/adminpanel.gif)](http://demo.grandnode.com/login?ReturnUrl=%2fadmin)
+[![ScreenShot](https://grandnode.com/content/images/uploaded/adminpanel.gif)](http://demo.grandnode.com/login?ReturnUrl=%2fadmin)
 
 Demo is restoring every hour to the original state.
 
